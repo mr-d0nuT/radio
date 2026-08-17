@@ -218,31 +218,21 @@
            VISUALITZADOR
            Espectre real del so que sona, llegit amb la Web Audio API.
            ============================================================ */
-        .viz {
-            position: absolute; left: 0; right: 0; bottom: 0;
-            width: 100%; pointer-events: none;
-        }
+        .viz { pointer-events: none; }
+        #viz-gadget { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; }
         /* Res de transicions d'opacitat: quan no hi ha dades, simplement
            no dibuixem. Així el canvas no es pot quedar a mig esvair-se. */
-        .viz:not(.on) { visibility: hidden; }
+        .viz:not(.on) { display: none; }
         #viz-main {
-            bottom: 100%; height: 74px; z-index: 2;
-            /* El fons ocupa tota l'amplada de la pantalla; el marge lateral
-               l'apliquem als blocs en dibuixar-los, no al canvas. */
-            left: 0; right: 0; width: 100%;
-            /* Mateix acabat que la barra del reproductor de sota: el mateix
-               negre translúcid i el mateix desenfoc del que hi ha al darrere.
-               Així les dues franges es veuen com una sola peça, i el llistat
-               tampoc no s'hi transparenta de manera lletja. */
+            /* Ocupa el seu propi lloc en comptes de flotar per damunt del
+               llistat: així cap emissora no li queda al darrere i el mateix
+               negre translúcid de la barra de sota es veu igual de net. */
+            width: 100%; height: 74px; flex: none;
             background: rgba(0, 0, 0, .6);
             backdrop-filter: blur(24px);
             -webkit-backdrop-filter: blur(24px);
         }
         #viz-gadget { height: 44px; z-index: 0; }
-
-        /* Amb l'equalitzador encès cal deixar-li lloc, o tapa les últimes
-           emissores del llistat i no hi ha manera d'arribar-hi. */
-        #main-view.viz-on #stations-grid { padding-bottom: 88px; }
 
         /* L'ambient batega amb els greus */
         .ambient-layer.on {
@@ -434,8 +424,9 @@
         </div>
 
         <!-- PLAYER BOTTOM BAR -->
+        <canvas id="viz-main" class="viz"></canvas>
+
         <div id="player-bar" class="h-20 bg-black/60 border-t border-white/5 flex items-center px-6 gap-4 shrink-0 backdrop-blur-xl">
-            <canvas id="viz-main" class="viz"></canvas>
             <div id="player-info" class="flex items-center gap-3 w-1/3 min-w-0">
                 <div class="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center overflow-hidden shrink-0" id="player-artwork-container">
                     <span class="text-white/40 text-xs font-bold" id="player-initial">R</span>
