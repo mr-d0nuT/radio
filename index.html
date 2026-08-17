@@ -230,8 +230,10 @@
             /* Una mica d'aire als costats. Amb width:auto un <canvas> no
                s'estira (és un element reemplaçat), cal dir-li l'amplada. */
             left: 18px; right: auto; width: calc(100% - 36px);
-            /* una base fosca perquè els blocs de color ressaltin com a la referència */
-            background: linear-gradient(to top, rgba(0,0,0,.8) 0%, rgba(0,0,0,.55) 55%, rgba(0,0,0,0) 100%);
+            /* Fons opac: amb transparència, les targetes del llistat es veien
+               per sota dels blocs i quedava brut. */
+            background: #0a0a0f;
+            border-radius: 10px 10px 0 0;
         }
         #viz-gadget { height: 44px; z-index: 0; }
 
