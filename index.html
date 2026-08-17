@@ -244,9 +244,6 @@
                 <button id="btn-gadget-mode" onclick="enterGadgetMode()" class="text-white/30 hover:text-white transition-colors p-1 bg-white/5 hover:bg-white/10 rounded-md" title="Minimitzar a gadget flotant (sobre l'escriptori)">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                 </button>
-                <button id="btn-relay" onclick="configureRelay()" class="text-white/30 hover:text-white transition-colors p-1 bg-white/5 hover:bg-white/10 rounded-md" title="Relay HTTPS per a emissores http">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                </button>
             </div>
 
             <div class="text-sm font-semibold text-white/90 tracking-wide flex-1 text-center truncate" id="main-title">
@@ -318,6 +315,7 @@
                     <span class="text-sm font-bold text-white truncate" id="player-title">Selecciona una emissora</span>
                     <span class="text-xs truncate flex items-center gap-1">
                         <span id="player-subtitle" class="text-[#ffd600] truncate">Milers d'opcions</span>
+                        <button id="btn-open-tab" onclick="openStreamInTab()" class="hidden text-[10px] font-bold text-black bg-[#ffd600] hover:bg-yellow-400 rounded px-1.5 py-0.5 ml-1 shrink-0 transition-colors">▶</button>
                         <span id="player-eq" class="hidden h-3 flex items-end gap-[1px] ml-1 shrink-0">
                             <span class="eq-bar h-1"></span><span class="eq-bar h-2"></span><span class="eq-bar h-3"></span><span class="eq-bar h-1.5"></span><span class="eq-bar h-2.5"></span>
                         </span>
@@ -386,6 +384,7 @@
             <div class="flex flex-col overflow-hidden flex-1 min-w-0">
                 <span class="text-base font-bold text-white truncate drop-shadow-md" id="gadget-title">Ràdio</span>
                 <span class="text-xs text-[#ffd600] truncate font-medium" id="gadget-subtitle">Cap emissora</span>
+                <button id="btn-open-tab-gadget" onclick="openStreamInTab()" class="hidden text-[10px] font-bold text-black bg-[#ffd600] hover:bg-yellow-400 rounded px-1.5 py-0.5 mt-1 self-start transition-colors">▶</button>
             </div>
             <button id="btn-gadget-fav" class="text-white/25 hover:text-white transition-colors shrink-0 p-1" title="Preferida"></button>
         </div>
@@ -423,60 +422,40 @@
             ar: { title: 'محطات الراديو', search: 'البحث عن محطة...', fav: 'المفضلة', noFav: 'أضف ما يصل إلى 5 مفضلات', noStation: 'اختر محطة', subStation: 'آلاف الخيارات', connecting: 'جارٍ الاتصال…', offline: 'المحطة غير متاحة', live: 'بث مباشر', noFavsShort: 'لا مفضلات', floatTitle: 'الأداة العائمة نشطة', floatDesc: 'المشغّل في نافذة صغيرة فوق سطح المكتب.<br>لا تغلق هذه العلامة: الصوت يخرج من هنا.', backBtn: 'العودة إلى النافذة الكبيرة', popupBlocked: 'حظر المتصفح النافذة العائمة. اسمح بالنوافذ المنبثقة.', pipHint: 'نصيحة: اسحب الزاوية لتغيير الحجم.', noStations: 'لم يتم العثور على محطات.', connError: 'خطأ في الاتصال.', favLimit: 'وصلت إلى حد 5 مفضلات.', copied: 'تم نسخ رابط البث' }
         };
         // Missatges per a emissores que només emeten per http (bloquejades en una pàgina https)
-        const RELAY_PROMPT = {
-            es: 'URL de tu relay HTTPS (déjalo vacío para desactivarlo):',
-            ca: 'URL del teu relay HTTPS (deixa-ho buit per desactivar-lo):',
-            fr: 'URL de votre relais HTTPS (vide pour désactiver) :',
-            it: 'URL del tuo relay HTTPS (vuoto per disattivare):',
-            de: 'URL deines HTTPS-Relays (leer zum Deaktivieren):',
-            zh: '你的 HTTPS 中继地址（留空即停用）：',
-            ja: 'HTTPSリレーのURL（空欄で無効化）：',
-            ar: 'عنوان مُرحّل HTTPS الخاص بك (اتركه فارغًا للتعطيل):'
-        };
         const i18nExtra = {
-            es: { insecure: 'Emisora sin HTTPS: el navegador la bloquea', insecureTip: 'Esta emisora solo emite por http. Configura un relay HTTPS (icono ⚙) para poder oírla.', relaySaved: 'Relay guardado', relayCleared: 'Relay desactivado' },
-            ca: { insecure: 'Emissora sense HTTPS: el navegador la bloqueja', insecureTip: 'Aquesta emissora només emet per http. Configura un relay HTTPS (icona ⚙) per poder-la sentir.', relaySaved: 'Relay desat', relayCleared: 'Relay desactivat' },
-            fr: { insecure: 'Station sans HTTPS : bloquée par le navigateur', insecureTip: 'Cette station n\'émet qu\'en http. Configurez un relais HTTPS (icône ⚙).', relaySaved: 'Relais enregistré', relayCleared: 'Relais désactivé' },
-            it: { insecure: 'Stazione senza HTTPS: bloccata dal browser', insecureTip: 'Questa stazione trasmette solo in http. Configura un relay HTTPS (icona ⚙).', relaySaved: 'Relay salvato', relayCleared: 'Relay disattivato' },
-            de: { insecure: 'Sender ohne HTTPS: vom Browser blockiert', insecureTip: 'Dieser Sender sendet nur über http. Richte ein HTTPS-Relay ein (⚙).', relaySaved: 'Relay gespeichert', relayCleared: 'Relay deaktiviert' },
-            zh: { insecure: '该电台无 HTTPS：已被浏览器拦截', insecureTip: '该电台仅通过 http 播放。请配置 HTTPS 中继（⚙ 图标）。', relaySaved: '中继已保存', relayCleared: '中继已停用' },
-            ja: { insecure: 'HTTPS非対応：ブラウザがブロック', insecureTip: 'この局はhttpのみです。HTTPSリレー（⚙）を設定してください。', relaySaved: 'リレーを保存しました', relayCleared: 'リレーを無効にしました' },
-            ar: { insecure: 'محطة بدون HTTPS: يحظرها المتصفح', insecureTip: 'تبث هذه المحطة عبر http فقط. اضبط مُرحّل HTTPS (أيقونة ⚙).', relaySaved: 'تم حفظ المُرحّل', relayCleared: 'تم تعطيل المُرحّل' }
+            es: { insecure: 'Esta emisora no puede sonar aquí', openTab: 'Abrir en pestaña', openTip: 'Se abre en una pestaña aparte, donde sí suena.' },
+            ca: { insecure: 'Aquesta emissora no pot sonar aquí', openTab: 'Obrir en pestanya', openTip: 'S\'obre en una pestanya a part, on sí que sona.' },
+            fr: { insecure: 'Cette station ne peut pas jouer ici', openTab: 'Ouvrir dans un onglet', openTip: 'S\'ouvre dans un onglet séparé, où elle fonctionne.' },
+            it: { insecure: 'Questa stazione non può suonare qui', openTab: 'Apri in una scheda', openTip: 'Si apre in una scheda separata, dove funziona.' },
+            de: { insecure: 'Dieser Sender kann hier nicht laufen', openTab: 'In neuem Tab öffnen', openTip: 'Öffnet sich in einem eigenen Tab, dort läuft er.' },
+            zh: { insecure: '该电台无法在此播放', openTab: '在新标签页打开', openTip: '将在单独的标签页中打开并正常播放。' },
+            ja: { insecure: 'この局はここでは再生できません', openTab: '新しいタブで開く', openTip: '別タブで開けば再生できます。' },
+            ar: { insecure: 'لا يمكن تشغيل هذه المحطة هنا', openTab: 'فتح في تبويب', openTip: 'تُفتح في تبويب منفصل حيث تعمل.' }
         };
-        Object.keys(RELAY_PROMPT).forEach(k => i18nExtra[k].relayPrompt = RELAY_PROMPT[k]);
         Object.keys(i18nExtra).forEach(k => Object.assign(i18n[k], i18nExtra[k]));
 
         const t = () => i18n[currentLang];
 
         // ============================================================
         // STREAMS http EN UNA PÀGINA https
-        // El navegador bloqueja el contingut mixt. Provem, per ordre:
-        //   1) el mateix stream per https (funciona en una minoria d'emissores)
-        //   2) el relay propi, si n'hi ha un de configurat
+        //
+        // El navegador bloqueja el contingut mixt i no es pot desactivar.
+        // Fem dues coses, totes dues sense que l'usuari hagi de configurar res:
+        //   1) provar el mateix stream per https (funciona en unes quantes)
+        //   2) si falla, oferir obrir-lo en una pestanya nova, on el navegador
+        //      sí que el reprodueix perquè ja no és contingut mixt.
         // ============================================================
-        const relayUrl = () => (localStorage.getItem('radioRelay') || '').trim();
         const needsWorkaround = s => location.protocol === 'https:' && /^http:/i.test(s.url_resolved || '');
 
         /** URLs a provar, en ordre, per a una emissora. */
         function streamCandidates(station) {
             const u = station.url_resolved;
-            if (!needsWorkaround(station)) return [u];
-            const list = ['https:' + u.slice(5)];
-            const relay = relayUrl();
-            if (relay) list.push(relay + (relay.includes('?') ? '&' : '?') + 'url=' + encodeURIComponent(u));
-            return list;
+            return needsWorkaround(station) ? ['https:' + u.slice(5)] : [u];
         }
 
-        function configureRelay() {
-            const current = relayUrl();
-            const next = prompt(t().relayPrompt, current);
-            if (next === null) return;
-            const v = next.trim();
-            if (v) localStorage.setItem('radioRelay', v);
-            else localStorage.removeItem('radioRelay');
-            toast(v ? t().relaySaved : t().relayCleared);
-            if (allStations.length > 0) renderStations(allStations);
-            if (currentStation) playStation(currentStation, false);
+        /** Últim recurs: el stream cru en una pestanya pròpia. */
+        function openStreamInTab() {
+            if (currentStation) window.open(currentStation.url_resolved, '_blank');
         }
 
         // --- Estat ---
@@ -805,7 +784,7 @@
                         <div class="text-sm font-semibold text-white truncate">${station.name}</div>
                         <div class="text-xs text-white/40 truncate flex items-center gap-1.5">
                             <span class="truncate">${station.country || 'Radio'}</span>
-                            ${needsWorkaround(station) && !relayUrl() ? `<span class="http-badge">HTTP</span>` : ''}
+                            ${needsWorkaround(station) ? `<span class="http-badge">HTTP</span>` : ''}
                         </div>
                     </div>
                     <button class="fav-btn p-2 rounded-full hover:bg-white/10 transition-colors shrink-0 ${heartStyle}">
@@ -969,13 +948,20 @@
 
             if (sub)  { sub.textContent = text;  sub.style.color = color; }
             if (gsub) { gsub.textContent = text; gsub.style.color = color; }
+
+            // El botó de "pestanya nova" només té sentit quan res més ha funcionat.
+            [byId('btn-open-tab'), byId('btn-open-tab-gadget')].forEach(b => {
+                if (!b) return;
+                b.classList.toggle('hidden', kind !== 'blocked');
+                b.textContent = '▶ ' + t().openTab;
+            });
         }
 
         // ============================================================
         // REPRODUCTOR
         // ============================================================
 
-        // Cadena d'URLs a provar per a l'emissora actual (directe → https → relay).
+        // Cadena d'URLs a provar per a l'emissora actual.
         let candidates = [];
         let candIdx = 0;
         let candAutoplay = true;
@@ -1013,10 +999,10 @@
             isPlaying = false;
             setPlayIcons(false);
             setLiveIndicators(false);
-            // Si l'emissora emet per http i no hi ha relay, el problema té nom i solució.
-            const noRelay = currentStation && needsWorkaround(currentStation) && !relayUrl();
-            setStatus(noRelay ? 'blocked' : 'error');
-            if (noRelay && candAutoplay) toast(t().insecureTip);
+            // Si emet només per http, encara queda la sortida de la pestanya nova.
+            const mixedContent = currentStation && needsWorkaround(currentStation);
+            setStatus(mixedContent ? 'blocked' : 'error');
+            if (mixedContent && candAutoplay) toast(t().openTip);
         }
 
         function playStation(station, autoplay = true) {
