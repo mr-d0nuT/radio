@@ -1,9 +1,9 @@
+https://mr-d0nut.github.io/radio/
+
 # Ràdio
 
 Reproductor web d'emissores en directe (API de [Radio Browser](https://www.radio-browser.info/)),
 amb cercador mundial, preferides i un gadget flotant per damunt de l'escriptori.
-
-**En directe:** https://mr-d0nut.github.io/radio/
 
 Un sol fitxer: `index.html`.
 
