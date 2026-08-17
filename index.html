@@ -1105,6 +1105,7 @@
         let candAutoplay = true;
         let chainFailed = false;
         let triedAlternatives = false;
+        let candTimer = null;
 
         /**
          * Moltes emissores surten repetides a la base de dades amb URLs diferents,
@@ -1116,17 +1117,40 @@
                 const url = 'https://de1.api.radio-browser.info/json/stations/search?limit=20&hidebroken=true&name='
                           + encodeURIComponent(station.name.trim());
                 const data = await (await fetch(url)).json();
-                return data.map(s => s.url_resolved)
-                           .filter(u => u && /^https:/i.test(u) && !candidates.includes(u));
+
+                // Les que es diuen exactament igual van primer: són la mateixa
+                // emissora, no una germana local amb un nom que s'hi assembla.
+                const mine = station.name.trim().toLowerCase();
+                data.sort((a, b) => (b.name.trim().toLowerCase() === mine) - (a.name.trim().toLowerCase() === mine));
+
+                const out = [];
+                data.forEach(s => {
+                    const u = s.url_resolved;
+                    if (!u) return;
+                    if (/^https:/i.test(u)) out.push(u);
+                    else if (/^http:/i.test(u)) out.push('https:' + u.slice(5));
+                });
+                return out.filter((u, i) => out.indexOf(u) === i && !candidates.includes(u));
             } catch (e) {
                 return [];
             }
         }
 
+        function clearCandTimer() { if (candTimer) { clearTimeout(candTimer); candTimer = null; } }
+
         function loadCandidate() {
             if (hls) { hls.destroy(); hls = null; }
+            clearCandTimer();
             const url = candidates[candIdx];
             if (!url) { failChain(); return; }
+
+            // Hi ha streams que no responen ni fallen: es queden penjats per
+            // sempre (un port que no parla TLS, per exemple) i el navegador no
+            // dispara cap error. Si no sona a temps, passem a la següent.
+            if (candAutoplay) candTimer = setTimeout(() => {
+                console.warn('Sense resposta a temps, provem una altra URL:', url);
+                nextCandidate();
+            }, 9000);
 
             if (/\.m3u8/i.test(url) && window.Hls && Hls.isSupported()) {
                 hls = new Hls();
@@ -1141,6 +1165,7 @@
         }
 
         function nextCandidate() {
+            clearCandTimer();
             if (candIdx < candidates.length - 1) {
                 candIdx++;
                 setStatus('loading');
@@ -1151,6 +1176,7 @@
         }
 
         async function failChain() {
+            clearCandTimer();
             // Abans de rendir-nos, mirem si la mateixa emissora té una altra
             // entrada a la base de dades amb una URL que sí que funcioni.
             if (!triedAlternatives && currentStation) {
@@ -1276,6 +1302,7 @@
         audio.addEventListener('play', () => { isPlaying = true; setPlayIcons(true); });
         audio.addEventListener('waiting', () => setStatus('loading'));
         audio.addEventListener('playing', () => {
+            clearCandTimer();
             isPlaying = true;
             setPlayIcons(true);
             setStatus('live');
@@ -1284,6 +1311,7 @@
             if (allStations.length > 0) renderStations(allStations);
         });
         audio.addEventListener('pause', () => {
+            clearCandTimer();
             isPlaying = false;
             setPlayIcons(false);
             setLiveIndicators(false);
