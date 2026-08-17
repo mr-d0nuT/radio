@@ -553,12 +553,69 @@
         //   2) si falla, oferir obrir-lo en una pestanya nova, on el navegador
         //      sí que el reprodueix perquè ja no és contingut mixt.
         // ============================================================
+        // enacast.com respon amb una redirecció 302 que NO porta capçaleres
+        // CORS, i el navegador avorta abans de seguir-la: per això aquestes
+        // emissores es reproduïen sense equalitzador. El destí final sí que les
+        // envia, així que hi anem directament i deixem la redirecció de reserva.
+        const ENACAST_DIRECT = {
+            'https://enacast.com/alcanarradio/streams/HD': 'https://relay.stream.enacast-cloud.com:40241/alcanarradioHD.mp3',
+            'https://enacast.com/alcudiaradio/streams/HD': 'https://streaming.enacast.com/alcudiaradio128.mp3',
+            'https://enacast.com/alpicatradio/streams/SD': 'https://streaming.enacast.com/alpicatradio128.mp3',
+            'https://enacast.com/altafullaradio/streams/HD': 'https://streaming.enacast.com/altafulla128.mp3',
+            'https://enacast.com/canalblau/streams/SD': 'https://streaming.enacast.com/canalblau128.mp3',
+            'https://enacast.com/laplanaradio/streams/HD': 'https://streaming.enacast.com/laplanaradio128.mp3',
+            'https://enacast.com/llagosteraradio/streams/HD': 'https://relay.stream.enacast-cloud.com:40248/llagosteraradioHD.mp3',
+            'https://enacast.com/olesaradio/streams/HD': 'https://relay.stream.enacast-cloud.com:40303/olesaradioHD.mp3',
+            'https://enacast.com/puigreig/streams/SD': 'https://streaming.enacast.com/radiopuigreig56.mp3',
+            'https://enacast.com/radioabadiademontserrat/streams/HD': 'https://streaming.enacast.com/radioabadiademontserrat96.mp3',
+            'https://enacast.com/radioaltea/streams/HD': 'https://streaming.enacast.com/radioaltea128.mp3',
+            'https://enacast.com/radioarenysdemunt/streams/HD': 'https://streaming.enacast.com/radioarenysmunt128.mp3',
+            'https://enacast.com/radiob/streams/HD': 'https://relay.stream.enacast-cloud.com:40039/radiob128.mp3',
+            'https://enacast.com/radioblanes/streams/HD': 'https://streaming.enacast.com/radioblanes128.mp3',
+            'https://enacast.com/radiocaldes/streams/HD': 'https://relay.stream.enacast-cloud.com:40062/radiocaldes128.mp3',
+            'https://enacast.com/radiocambrils/streams/HD': 'https://relay.stream.enacast-cloud.com:40315/radiocambrilsHD.mp3',
+            'https://enacast.com/radiocastelldefels/streams/HD': 'https://streaming.enacast.com/radiocastelldefels128.mp3',
+            'https://enacast.com/radioconstanti/streams/HD': 'https://streaming.enacast.com/radioconstantiSD.mp3',
+            'https://enacast.com/radiocorbera/streams/HD': 'https://streaming.enacast.com/radiocorbera128.mp3',
+            'https://enacast.com/radiocornella/streams/SD': 'https://relay.stream.enacast-cloud.com:40117/radiocornella56.mp3',
+            'https://enacast.com/radiocubelles/streams/HD': 'https://streaming.enacast.com/cubelles128.mp3',
+            'https://enacast.com/radiocunit/streams/HD': 'https://streaming.enacast.com/radiocunitHD.mp3',
+            'https://enacast.com/radioesparreguera/streams/HD': 'https://relay.stream.enacast-cloud.com:40091/radioesparraguera128.mp3',
+            'https://enacast.com/radiogranollers/streams/HD': 'https://relay.stream.enacast-cloud.com:40324/radiogranollersHD.mp3',
+            'https://enacast.com/radiomanlleu/streams/HD': 'https://streaming.enacast.com/radiomanlleu128.mp3',
+            'https://enacast.com/radiomanresa/streams/HD': 'https://streaming.enacast.com/taronjadigital-bages128.mp3',
+            'https://enacast.com/radiomatadepera/streams/HD': 'https://relay.stream.enacast-cloud.com:40360/radiomatadeperaHD.mp3',
+            'https://enacast.com/radiomontblanc/streams/HD': 'https://relay.stream.enacast-cloud.com:40045/radiomontblanc128.mp3',
+            'https://enacast.com/radiopalau/streams/HD': 'https://relay.stream.enacast-cloud.com:40123/radiopalau96.mp3',
+            'https://enacast.com/radiopalleja/streams/HD': 'https://relay.stream.enacast-cloud.com:40333/radiopallejaHD.mp3',
+            'https://enacast.com/radioponts/streams/HD': 'https://streaming.enacast.com/radioponts128.mp3',
+            'https://enacast.com/radiorapita/streams/SD': 'https://streaming.enacast.com/radiorapita56.mp3',
+            'https://enacast.com/radioribarroja/streams/SD': 'https://streaming.enacast.com/radioribarroja56.mp3',
+            'https://enacast.com/radiosantboi/streams/HD': 'https://streaming.enacast.com/radiosantboi128.mp3',
+            'https://enacast.com/radiosantfeliu/streams/HD': 'https://streaming.enacast.com/radiosantfeliu128.mp3',
+            'https://enacast.com/radiosantquirze/streams/HD': 'https://streaming.enacast.com/radiosantquirzeHD.mp3',
+            'https://enacast.com/radiosentmenat/streams/HD': 'https://streaming.enacast.com/radiosentmenat96.mp3',
+            'https://enacast.com/radiosuria/streams/HD': 'https://relay.stream.enacast-cloud.com:40287/radiosuriaHD.mp3',
+            'https://enacast.com/radiotarrega/streams/HD': 'https://streaming.enacast.com/radiotarrega128.mp3',
+            'https://enacast.com/radiotordera/streams/HD': 'https://relay.stream.enacast-cloud.com:40295/radiotorderaHD.mp3',
+            'https://enacast.com/radiotremp/streams/HD': 'https://relay.stream.enacast-cloud.com:40354/radiotrempHD.mp3',
+            'https://enacast.com/radioulldecona/streams/HD': 'https://streaming.enacast.com/radioulldecona128.mp3',
+            'https://enacast.com/radiovic/streams/HD': 'https://streaming.enacast.com/radiovic56.mp3',
+            'https://enacast.com/radiovilablareix/streams/SD': 'https://streaming.enacast.com/radiovilablareix56.mp3',
+            'https://enacast.com/rtvelvendrell/streams/SD': 'https://streaming.enacast.com/rtvelvendrell56.mp3',
+            'https://enacast.com/tarragonaradio/streams/SD': 'https://relay.stream.enacast-cloud.com:40007/tarragona56.mp3'
+        };
+
         const needsWorkaround = s => location.protocol === 'https:' && /^http:/i.test(s.url_resolved || '');
 
         /** URLs a provar, en ordre, per a una emissora. */
         function streamCandidates(station) {
             const u = station.url_resolved;
-            return needsWorkaround(station) ? ['https:' + u.slice(5)] : [u];
+            const https = /^http:/i.test(u) ? 'https:' + u.slice(5) : u;
+            const list = [];
+            if (ENACAST_DIRECT[https]) list.push(ENACAST_DIRECT[https]);
+            list.push(needsWorkaround(station) ? https : u);
+            return list.filter((x, i, a) => a.indexOf(x) === i);
         }
 
         /** Últim recurs: el stream cru en una pestanya pròpia. */
