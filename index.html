@@ -197,6 +197,13 @@
             to   { transform: scale(1.8) translate3d(3%, 2%, 0); }
         }
 
+        /* Dins de la finestra de l'app. Imprescindible al mòbil, on l'app
+           ocupa tota la pantalla i taparia el fons de darrere. */
+        #view-ambient { position: absolute; inset: 0; z-index: 0; overflow: hidden; }
+        #view-ambient .ambient-layer { filter: blur(70px) saturate(200%); }
+        #view-ambient .ambient-layer.on { opacity: .32; }
+        #main-view > *:not(#view-ambient) { position: relative; z-index: 1; }
+
         /* Dins del gadget, el mateix però contingut a la seva capsa */
         #gadget-view { overflow: hidden; }
         #gadget-ambient { position: absolute; inset: 0; z-index: 0; overflow: hidden; border-radius: inherit; }
@@ -279,6 +286,11 @@
 
     <!-- MAIN WINDOW VIEW -->
     <div id="main-view" class="w-full h-full max-w-[900px] max-h-[650px] glass-panel rounded-xl shadow-2xl flex flex-col overflow-hidden relative z-10">
+
+        <div id="view-ambient">
+            <div class="ambient-layer"></div>
+            <div class="ambient-layer"></div>
+        </div>
 
         <!-- MAC HEADER & FLAGS -->
         <div id="header-bar" class="min-h-[3.5rem] py-2 bg-black/40 border-b border-white/5 flex items-center px-4 justify-between select-none shrink-0">
@@ -1126,7 +1138,9 @@
         /** Encreua les dues capes de cada contenidor cap a la imatge nova. */
         function setAmbient(url) {
             const next = ambientSlot, prev = 1 - ambientSlot;
-            const containers = [document.getElementById('ambient'), byId('gadget-ambient')];
+            const containers = [document.getElementById('ambient'),
+                                document.getElementById('view-ambient'),
+                                byId('gadget-ambient')];
 
             containers.forEach(box => {
                 if (!box) return;
