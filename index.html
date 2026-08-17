@@ -227,13 +227,10 @@
         .viz:not(.on) { visibility: hidden; }
         #viz-main {
             bottom: 100%; height: 74px; z-index: 2;
-            /* Una mica d'aire als costats. Amb width:auto un <canvas> no
-               s'estira (és un element reemplaçat), cal dir-li l'amplada. */
-            left: 18px; right: auto; width: calc(100% - 36px);
-            /* Fons opac: amb transparència, les targetes del llistat es veien
-               per sota dels blocs i quedava brut. */
+            /* El fons ocupa tota l'amplada de la pantalla; el marge lateral
+               l'apliquem als blocs en dibuixar-los, no al canvas. */
+            left: 0; right: 0; width: 100%;
             background: #0a0a0f;
-            border-radius: 10px 10px 0 0;
         }
         #viz-gadget { height: 44px; z-index: 0; }
 
@@ -1284,9 +1281,11 @@
                 // Equalitzador de blocs: cada columna és una pila de segments
                 // separats, i el color el marca la columna (no l'alçada), fent
                 // un escombrat de to de violeta a cian al llarg de l'espectre.
-                const bars = Math.max(32, Math.min(96, Math.floor(w / 8)));
+                const padX = id === 'viz-gadget' ? 6 : 18;
+                const usableW = Math.max(40, w - padX * 2);
+                const bars = Math.max(32, Math.min(96, Math.floor(usableW / 8)));
                 const gap = id === 'viz-gadget' ? 2 : 3;
-                const bw = (w - gap * (bars - 1)) / bars;
+                const bw = (usableW - gap * (bars - 1)) / bars;
 
                 const segGap = 2;
                 const segH = id === 'viz-gadget' ? 3 : 5;
@@ -1313,7 +1312,7 @@
                     peaks[i] = Math.max(level, peaks[i] - 0.010);
 
                     const hue = (270 + (i / Math.max(1, bars - 1)) * 280) % 360;
-                    const x = i * (bw + gap);
+                    const x = padX + i * (bw + gap);
                     const lit = Math.round(level * segs);
 
                     ctx.fillStyle = 'hsl(' + hue.toFixed(1) + ', 95%, 55%)';
