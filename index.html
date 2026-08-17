@@ -173,6 +173,42 @@
         #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
         /* ============================================================
+           AMBIENT
+           El logotip de l'emissora, ampliat i desenfocat fins que només en
+           queda el color, respirant darrere de tot. Canvia amb l'emissora.
+           ============================================================ */
+        #ambient {
+            position: fixed; inset: 0; z-index: 0;
+            pointer-events: none; overflow: hidden;
+        }
+        .ambient-layer {
+            position: absolute; inset: -25%;
+            background-size: cover; background-position: center;
+            filter: blur(90px) saturate(220%);
+            opacity: 0;
+            transition: opacity 1.4s ease;
+            transform: scale(1.6);
+            will-change: opacity, transform;
+        }
+        .ambient-layer.on { opacity: .55; animation: ambient-drift 44s ease-in-out infinite alternate; }
+
+        @keyframes ambient-drift {
+            from { transform: scale(1.5) translate3d(-3%, -2%, 0); }
+            to   { transform: scale(1.8) translate3d(3%, 2%, 0); }
+        }
+
+        /* Dins del gadget, el mateix però contingut a la seva capsa */
+        #gadget-view { overflow: hidden; }
+        #gadget-ambient { position: absolute; inset: 0; z-index: 0; overflow: hidden; border-radius: inherit; }
+        #gadget-ambient .ambient-layer { filter: blur(34px) saturate(220%); inset: -35%; }
+        #gadget-ambient .ambient-layer.on { opacity: .45; }
+        #gadget-view > *:not(#gadget-ambient) { position: relative; z-index: 1; }
+
+        @media (prefers-reduced-motion: reduce) {
+            .ambient-layer.on { animation: none; }
+        }
+
+        /* ============================================================
            MÒBIL / TAULETA — la finestra "d'escriptori" passa a pantalla completa
            ============================================================ */
         @media (max-width: 768px) {
@@ -235,8 +271,14 @@
 </head>
 <body>
 
+    <!-- El color de l'emissora, darrere de tot -->
+    <div id="ambient">
+        <div class="ambient-layer"></div>
+        <div class="ambient-layer"></div>
+    </div>
+
     <!-- MAIN WINDOW VIEW -->
-    <div id="main-view" class="w-full h-full max-w-[900px] max-h-[650px] glass-panel rounded-xl shadow-2xl flex flex-col overflow-hidden relative">
+    <div id="main-view" class="w-full h-full max-w-[900px] max-h-[650px] glass-panel rounded-xl shadow-2xl flex flex-col overflow-hidden relative z-10">
 
         <!-- MAC HEADER & FLAGS -->
         <div id="header-bar" class="min-h-[3.5rem] py-2 bg-black/40 border-b border-white/5 flex items-center px-4 justify-between select-none shrink-0">
@@ -354,7 +396,7 @@
     </div>
 
     <!-- PLACEHOLDER: es mostra a la pestanya mentre el gadget viu a la finestra flotant -->
-    <div id="detached-placeholder" class="hidden-app w-[420px] glass-panel rounded-2xl p-8 flex flex-col items-center gap-3 text-center shadow-2xl">
+    <div id="detached-placeholder" class="hidden-app w-[420px] glass-panel rounded-2xl p-8 flex flex-col items-center gap-3 text-center shadow-2xl relative z-10">
         <div class="w-14 h-14 rounded-full bg-[#ffd600]/10 border border-[#ffd600]/30 flex items-center justify-center">
             <svg class="w-7 h-7 text-[#ffd600]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 6v12a2 2 0 002 2h12a2 2 0 002-2V6M9 12h6"></path></svg>
         </div>
@@ -369,7 +411,12 @@
     </div>
 
     <!-- GADGET VIEW -->
-    <div id="gadget-view" class="hidden-app w-[320px] bg-black/80 backdrop-blur-3xl border border-white/10 rounded-[2rem] p-5 shadow-2xl flex flex-col gap-4 relative select-none">
+    <div id="gadget-view" class="hidden-app w-[320px] bg-black/80 backdrop-blur-3xl border border-white/10 rounded-[2rem] p-5 shadow-2xl flex flex-col gap-4 relative select-none z-10">
+
+        <div id="gadget-ambient">
+            <div class="ambient-layer"></div>
+            <div class="ambient-layer"></div>
+        </div>
 
         <div id="gadget-header" class="flex justify-between items-center shrink-0">
             <div class="flex gap-2 items-center">
@@ -1072,6 +1119,40 @@
         document.getElementById('btn-gadget-mute').addEventListener('click', toggleMute);
 
         // ============================================================
+        // AMBIENT: el color de l'emissora darrere de la interfície
+        // ============================================================
+        let ambientSlot = 0;
+
+        /** Encreua les dues capes de cada contenidor cap a la imatge nova. */
+        function setAmbient(url) {
+            const next = ambientSlot, prev = 1 - ambientSlot;
+            const containers = [document.getElementById('ambient'), byId('gadget-ambient')];
+
+            containers.forEach(box => {
+                if (!box) return;
+                const layers = box.querySelectorAll('.ambient-layer');
+                if (layers.length < 2) return;
+                if (!url) { layers.forEach(l => l.classList.remove('on')); return; }
+                layers[next].style.backgroundImage = 'url("' + url + '")';
+                layers[next].classList.add('on');
+                layers[prev].classList.remove('on');
+            });
+
+            if (url) ambientSlot = prev;
+        }
+
+        /** Només pintem el fons si el logotip carrega de debò i encara toca. */
+        function updateAmbient(station) {
+            if (!station || !station.favicon) { setAmbient(null); return; }
+            const img = new Image();
+            img.onload = () => {
+                if (currentStation && currentStation.stationuuid === station.stationuuid) setAmbient(station.favicon);
+            };
+            img.onerror = () => setAmbient(null);
+            img.src = station.favicon;
+        }
+
+        // ============================================================
         // ESTAT DEL STREAM (connectant / en directe / caigut)
         // ============================================================
         function setStatus(kind) {
@@ -1229,6 +1310,7 @@
             setupArtwork('player-initial', 'player-img');
             setupArtwork('gadget-initial', 'gadget-img');
 
+            updateAmbient(station);
             updateFavIcons();
 
             candidates = streamCandidates(station);
