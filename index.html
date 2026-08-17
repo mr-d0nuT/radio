@@ -490,13 +490,20 @@
             { id: 'constanti',     name: 'Constantí Ràdio',     url_resolved: E('radioconstanti') },
             { id: 'corbera',       name: 'Ràdio Corbera',       url_resolved: E('radiocorbera') },
             { id: 'cubelles',      name: 'Ràdio Cubelles',      url_resolved: E('radiocubelles') },
+            { id: 'cunit',         name: 'Ràdio Cunit',         url_resolved: E('radiocunit') },
             { id: 'esparreguera',  name: 'Ràdio Esparreguera',  url_resolved: E('radioesparreguera') },
             { id: 'granollers',    name: 'Ràdio Granollers',    url_resolved: E('radiogranollers') },
+            { id: 'llagostera',    name: 'Llagostera Ràdio',    url_resolved: E('llagosteraradio') },
             { id: 'manresa',       name: 'Ràdio Manresa',       url_resolved: E('radiomanresa') },
+            { id: 'matadepera',    name: 'Matadepera Ràdio',    url_resolved: E('radiomatadepera') },
+            { id: 'montblanc',     name: 'Ràdio Montblanc',     url_resolved: E('radiomontblanc') },
             { id: 'olesa',         name: 'Olesa Ràdio',         url_resolved: E('olesaradio') },
+            { id: 'palau',         name: 'Ràdio Palau',         url_resolved: E('radiopalau') },
+            { id: 'palleja',       name: 'Ràdio Pallejà',       url_resolved: E('radiopalleja') },
             { id: 'santboi',       name: 'Ràdio Sant Boi',      url_resolved: E('radiosantboi') },
             { id: 'santfeliu',     name: 'Ràdio Sant Feliu',    url_resolved: E('radiosantfeliu') },
             { id: 'santquirze',    name: 'Ràdio Sant Quirze',   url_resolved: E('radiosantquirze') },
+            { id: 'suria',         name: 'Ràdio Súria',         url_resolved: E('radiosuria') },
             { id: 'tordera',       name: 'Ràdio Tordera',       url_resolved: E('radiotordera') },
             { id: 'tremp',         name: 'Ràdio Tremp',         url_resolved: E('radiotremp') },
             { id: 'vic',           name: 'Ràdio Vic',           url_resolved: E('radiovic') }
@@ -567,16 +574,18 @@
         }
 
         /**
-         * Les pròpies van al davant. Cercant, es filtren pel nom i surten sigui
-         * quina sigui la regió; sense cercar, les catalanes només surten a
-         * Catalunya (si no, apareixerien també mirant el Japó).
+         * Barreja les pròpies amb les de l'API i ho torna tot ordenat de la A a
+         * la Z, en una sola llista. Cercant, les pròpies es filtren pel nom i
+         * surten sigui quina sigui la regió; sense cercar, les catalanes només
+         * surten a Catalunya (si no, apareixerien també mirant el Japó).
          */
         function withCustom(list, { query = '', region = '' } = {}) {
             const q = query.trim().toLowerCase();
             const mine = q
                 ? customStations.filter(s => s.name.toLowerCase().includes(q))
                 : customStations.filter(s => s.own || region === 'Catalunya');
-            return [...mine, ...list];
+            return [...mine, ...list].sort((a, b) =>
+                a.name.trim().localeCompare(b.name.trim(), undefined, { sensitivity: 'base' }));
         }
 
         // --- Estat ---
