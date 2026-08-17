@@ -188,7 +188,10 @@
             /* El gadget flotant no existeix a iOS: el botó només confondria */
             #btn-gadget-mode { display: none !important; }
 
-            /* Capçalera del mòbil: [+] 🍩 Ràdio ......... banderes */
+            /* Capçalera del mòbil: [+] 🍩 Ràdio ......... banderes.
+               Més alta perquè el dònut hi càpiga sencer, sense escapçar-lo. */
+            #header-bar { min-height: 4.25rem; padding-top: 10px; padding-bottom: 10px; }
+            #logo-donut { width: 2.75rem; height: 2.75rem; }
             #flags-row { width: auto; flex: 0 1 auto; }
             #flags-row > button { flex: 0 0 auto; }
 
@@ -236,7 +239,7 @@
     <div id="main-view" class="w-full h-full max-w-[900px] max-h-[650px] glass-panel rounded-xl shadow-2xl flex flex-col overflow-hidden relative">
 
         <!-- MAC HEADER & FLAGS -->
-        <div class="h-12 bg-black/40 border-b border-white/5 flex items-center px-4 justify-between select-none shrink-0">
+        <div id="header-bar" class="min-h-[3.5rem] py-2 bg-black/40 border-b border-white/5 flex items-center px-4 justify-between select-none shrink-0">
             <div id="header-left" class="flex items-center gap-2 min-w-0">
                 <button id="btn-gadget-mode" onclick="enterGadgetMode()" class="text-white/30 hover:text-white transition-colors p-1 bg-white/5 hover:bg-white/10 rounded-md" title="Minimitzar a gadget flotant (sobre l'escriptori)">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -246,7 +249,7 @@
                 </button>
 
                 <div class="flex items-center gap-2 min-w-0 ml-1" id="main-title">
-                    <img src="donut.png" alt="" class="w-7 h-7 object-contain shrink-0 drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
+                    <img src="donut.png" alt="" id="logo-donut" class="w-8 h-8 object-contain shrink-0 drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
                     <span class="text-sm font-semibold text-white/90 tracking-wide truncate" id="main-title-text">Ràdio</span>
                 </div>
             </div>
