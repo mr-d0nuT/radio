@@ -234,6 +234,10 @@
         }
         #viz-gadget { height: 44px; z-index: 0; }
 
+        /* Amb l'equalitzador encès cal deixar-li lloc, o tapa les últimes
+           emissores del llistat i no hi ha manera d'arribar-hi. */
+        #main-view.viz-on #stations-grid { padding-bottom: 88px; }
+
         /* L'ambient batega amb els greus */
         .ambient-layer.on {
             transform-origin: center;
@@ -1299,6 +1303,9 @@
 
             const live = vizLive();
             const targets = vizTargets();
+
+            const mv = document.getElementById('main-view');
+            if (mv && mv.classList.contains('viz-on') !== live) mv.classList.toggle('viz-on', live);
 
             targets.forEach(({ cv, ctx }) => {
                 if (cv.classList.contains('on') !== live) cv.classList.toggle('on', live);
