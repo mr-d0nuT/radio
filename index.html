@@ -230,7 +230,13 @@
             /* El fons ocupa tota l'amplada de la pantalla; el marge lateral
                l'apliquem als blocs en dibuixar-los, no al canvas. */
             left: 0; right: 0; width: 100%;
-            background: #0a0a0f;
+            /* Mateix acabat que la barra del reproductor de sota: el mateix
+               negre translúcid i el mateix desenfoc del que hi ha al darrere.
+               Així les dues franges es veuen com una sola peça, i el llistat
+               tampoc no s'hi transparenta de manera lletja. */
+            background: rgba(0, 0, 0, .6);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
         }
         #viz-gadget { height: 44px; z-index: 0; }
 
