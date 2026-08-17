@@ -478,21 +478,57 @@
         // Radio Browser no ho té tot: Ràdio Esparreguera, per exemple, no hi és.
         // Aquestes es desen al navegador i es barregen amb la resta.
         // ============================================================
+        // Ràdios municipals catalanes que no són a Radio Browser. Totes verificades:
+        // emeten per https i la seva pròpia web enllaça aquest mateix stream.
+        const E = slug => 'https://enacast.com/' + slug + '/streams/HD';
         const SEED_STATIONS = [
-            { name: 'Ràdio Esparreguera', url_resolved: 'https://enacast.com/radioesparreguera/streams/HD', country: 'Catalunya' }
+            { id: 'alcanar',       name: 'Alcanar Ràdio',       url_resolved: E('alcanarradio') },
+            { id: 'blanes',        name: 'Ràdio Blanes',        url_resolved: E('radioblanes') },
+            { id: 'caldes',        name: 'Ràdio Caldes',        url_resolved: E('radiocaldes') },
+            { id: 'cambrils',      name: 'Ràdio Cambrils',      url_resolved: E('radiocambrils') },
+            { id: 'castelldefels', name: 'Ràdio Castelldefels', url_resolved: E('radiocastelldefels') },
+            { id: 'constanti',     name: 'Constantí Ràdio',     url_resolved: E('radioconstanti') },
+            { id: 'corbera',       name: 'Ràdio Corbera',       url_resolved: E('radiocorbera') },
+            { id: 'cubelles',      name: 'Ràdio Cubelles',      url_resolved: E('radiocubelles') },
+            { id: 'esparreguera',  name: 'Ràdio Esparreguera',  url_resolved: E('radioesparreguera') },
+            { id: 'granollers',    name: 'Ràdio Granollers',    url_resolved: E('radiogranollers') },
+            { id: 'manresa',       name: 'Ràdio Manresa',       url_resolved: E('radiomanresa') },
+            { id: 'olesa',         name: 'Olesa Ràdio',         url_resolved: E('olesaradio') },
+            { id: 'santboi',       name: 'Ràdio Sant Boi',      url_resolved: E('radiosantboi') },
+            { id: 'santfeliu',     name: 'Ràdio Sant Feliu',    url_resolved: E('radiosantfeliu') },
+            { id: 'santquirze',    name: 'Ràdio Sant Quirze',   url_resolved: E('radiosantquirze') },
+            { id: 'tordera',       name: 'Ràdio Tordera',       url_resolved: E('radiotordera') },
+            { id: 'tremp',         name: 'Ràdio Tremp',         url_resolved: E('radiotremp') },
+            { id: 'vic',           name: 'Ràdio Vic',           url_resolved: E('radiovic') }
         ];
 
         let customStations = [];
 
+        /**
+         * Carrega les pròpies i hi afegeix les de la llista que no s'hagin
+         * ofert mai. Guardem quines s'han ofert perquè, si en treus alguna,
+         * no et torni a sortir a la pròxima actualització.
+         */
         function loadCustomStations() {
-            const raw = localStorage.getItem('radioCustom');
-            if (raw === null) {
-                // Primer arrencada: hi posem les que sabem que hi falten.
-                customStations = SEED_STATIONS.map((s, i) => ({ ...s, stationuuid: 'custom-seed-' + i, favicon: '', custom: true }));
-                saveCustomStations();
-            } else {
-                try { customStations = JSON.parse(raw) || []; } catch (e) { customStations = []; }
-            }
+            try { customStations = JSON.parse(localStorage.getItem('radioCustom') || '[]') || []; }
+            catch (e) { customStations = []; }
+
+            let seen = [];
+            try { seen = JSON.parse(localStorage.getItem('radioSeedsSeen') || '[]') || []; }
+            catch (e) { seen = []; }
+
+            const present = new Set(customStations.map(s => s.url_resolved));
+            let added = 0;
+            SEED_STATIONS.forEach(s => {
+                if (seen.includes(s.id) || present.has(s.url_resolved)) return;
+                customStations.push({
+                    stationuuid: 'seed-' + s.id, name: s.name, url_resolved: s.url_resolved,
+                    country: 'Catalunya', favicon: '', custom: true
+                });
+                added++;
+            });
+            localStorage.setItem('radioSeedsSeen', JSON.stringify(SEED_STATIONS.map(s => s.id)));
+            if (added) saveCustomStations();
         }
 
         function saveCustomStations() {
@@ -513,7 +549,7 @@
 
             customStations.push({
                 stationuuid: 'custom-' + Date.now(),
-                name, url_resolved: url, country: t().ownStation, favicon: '', custom: true
+                name, url_resolved: url, country: t().ownStation, favicon: '', custom: true, own: true
             });
             saveCustomStations();
             byId('add-name').value = '';
@@ -530,10 +566,16 @@
             renderStations(allStations);
         }
 
-        /** Les pròpies van sempre al davant, i es filtren pel text cercat. */
-        function withCustom(list, query = '') {
+        /**
+         * Les pròpies van al davant. Cercant, es filtren pel nom i surten sigui
+         * quina sigui la regió; sense cercar, les catalanes només surten a
+         * Catalunya (si no, apareixerien també mirant el Japó).
+         */
+        function withCustom(list, { query = '', region = '' } = {}) {
             const q = query.trim().toLowerCase();
-            const mine = q ? customStations.filter(s => s.name.toLowerCase().includes(q)) : customStations;
+            const mine = q
+                ? customStations.filter(s => s.name.toLowerCase().includes(q))
+                : customStations.filter(s => s.own || region === 'Catalunya');
             return [...mine, ...list];
         }
 
@@ -788,7 +830,7 @@
                 const response = await fetch(url);
                 let data = await response.json();
                 data.sort((a, b) => a.name.trim().localeCompare(b.name.trim(), undefined, { sensitivity: 'base' }));
-                allStations = withCustom(data.filter(s => s.url_resolved));
+                allStations = withCustom(data.filter(s => s.url_resolved), { region: countryOrRegion });
                 renderStations(allStations);
             } catch (error) {
                 console.error("Error cargando emisoras:", error);
@@ -816,7 +858,7 @@
                     const response = await fetch(url);
                     let data = await response.json();
                     data.sort((a, b) => a.name.trim().localeCompare(b.name.trim(), undefined, { sensitivity: 'base' }));
-                    allStations = withCustom(data.filter(s => s.url_resolved), query);
+                    allStations = withCustom(data.filter(s => s.url_resolved), { query });
                     renderStations(allStations);
                 } catch (e) {
                     console.error("Search error", e);
