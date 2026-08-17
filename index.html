@@ -169,15 +169,6 @@
         }
         #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-        /* Distintiu per a emissores amb stream http (bloquejat en una pàgina https) */
-        .http-badge {
-            font-size: 8px; font-weight: 800; letter-spacing: .08em;
-            padding: 1px 4px; border-radius: 4px;
-            background: rgba(248,113,113,.15); color: #fca5a5;
-            border: 1px solid rgba(248,113,113,.3);
-            flex-shrink: 0;
-        }
-
         /* ============================================================
            MÒBIL / TAULETA — la finestra "d'escriptori" passa a pantalla completa
            ============================================================ */
@@ -244,6 +235,9 @@
                 <button id="btn-gadget-mode" onclick="enterGadgetMode()" class="text-white/30 hover:text-white transition-colors p-1 bg-white/5 hover:bg-white/10 rounded-md" title="Minimitzar a gadget flotant (sobre l'escriptori)">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                 </button>
+                <button id="btn-add-station" onclick="toggleAddForm()" class="text-white/30 hover:text-white transition-colors p-1 bg-white/5 hover:bg-white/10 rounded-md" title="Afegir una emissora que no és a la llista">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                </button>
             </div>
 
             <div class="text-sm font-semibold text-white/90 tracking-wide flex-1 text-center truncate" id="main-title">
@@ -280,6 +274,13 @@
                 <option value="JP" class="bg-gray-900">Japón</option>
                 <option value="MA" class="bg-gray-900">Marruecos</option>
             </select>
+        </div>
+
+        <!-- AFEGIR EMISSORA A MÀ (per a les que no són a Radio Browser) -->
+        <div id="add-form" class="hidden px-6 py-3 flex gap-2 border-b border-white/5 bg-[#ffd600]/5 shrink-0 items-center">
+            <input type="text" id="add-name" placeholder="Nom" class="w-40 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/40 focus:outline-none focus:border-[#ffd600]/50">
+            <input type="text" id="add-url" placeholder="https://... (URL del stream)" class="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/40 focus:outline-none focus:border-[#ffd600]/50">
+            <button onclick="addCustomStation()" class="px-4 py-2 bg-[#ffd600] text-black text-sm font-bold rounded-lg hover:bg-yellow-400 transition-colors shrink-0" id="lbl-add-btn">Afegir</button>
         </div>
 
         <!-- CONTENT AREA -->
@@ -423,14 +424,14 @@
         };
         // Missatges per a emissores que només emeten per http (bloquejades en una pàgina https)
         const i18nExtra = {
-            es: { insecure: 'Esta emisora no puede sonar aquí', openTab: 'Abrir en pestaña', openTip: 'Se abre en una pestaña aparte, donde sí suena.' },
-            ca: { insecure: 'Aquesta emissora no pot sonar aquí', openTab: 'Obrir en pestanya', openTip: 'S\'obre en una pestanya a part, on sí que sona.' },
-            fr: { insecure: 'Cette station ne peut pas jouer ici', openTab: 'Ouvrir dans un onglet', openTip: 'S\'ouvre dans un onglet séparé, où elle fonctionne.' },
-            it: { insecure: 'Questa stazione non può suonare qui', openTab: 'Apri in una scheda', openTip: 'Si apre in una scheda separata, dove funziona.' },
-            de: { insecure: 'Dieser Sender kann hier nicht laufen', openTab: 'In neuem Tab öffnen', openTip: 'Öffnet sich in einem eigenen Tab, dort läuft er.' },
-            zh: { insecure: '该电台无法在此播放', openTab: '在新标签页打开', openTip: '将在单独的标签页中打开并正常播放。' },
-            ja: { insecure: 'この局はここでは再生できません', openTab: '新しいタブで開く', openTip: '別タブで開けば再生できます。' },
-            ar: { insecure: 'لا يمكن تشغيل هذه المحطة هنا', openTab: 'فتح في تبويب', openTip: 'تُفتح في تبويب منفصل حيث تعمل.' }
+            es: { insecure: 'Esta emisora no puede sonar aquí', openTab: 'Abrir en pestaña', openTip: 'Se abre en una pestaña aparte, donde sí suena.', ownStation: 'Propia', addOk: 'Emisora añadida', addMissing: 'Falta el nombre o la URL', addBadUrl: 'La URL debe empezar por http:// o https://', addBtn: 'Añadir', addName: 'Nombre', addUrl: 'https://... (URL del stream)' },
+            ca: { insecure: 'Aquesta emissora no pot sonar aquí', openTab: 'Obrir en pestanya', openTip: 'S\'obre en una pestanya a part, on sí que sona.', ownStation: 'Pròpia', addOk: 'Emissora afegida', addMissing: 'Falta el nom o la URL', addBadUrl: 'La URL ha de començar per http:// o https://', addBtn: 'Afegir', addName: 'Nom', addUrl: 'https://... (URL del stream)' },
+            fr: { insecure: 'Cette station ne peut pas jouer ici', openTab: 'Ouvrir dans un onglet', openTip: 'S\'ouvre dans un onglet séparé, où elle fonctionne.', ownStation: 'Perso', addOk: 'Station ajoutée', addMissing: 'Nom ou URL manquant', addBadUrl: 'L\'URL doit commencer par http:// ou https://', addBtn: 'Ajouter', addName: 'Nom', addUrl: 'https://... (URL du flux)' },
+            it: { insecure: 'Questa stazione non può suonare qui', openTab: 'Apri in una scheda', openTip: 'Si apre in una scheda separata, dove funziona.', ownStation: 'Propria', addOk: 'Stazione aggiunta', addMissing: 'Manca il nome o l\'URL', addBadUrl: 'L\'URL deve iniziare con http:// o https://', addBtn: 'Aggiungi', addName: 'Nome', addUrl: 'https://... (URL dello stream)' },
+            de: { insecure: 'Dieser Sender kann hier nicht laufen', openTab: 'In neuem Tab öffnen', openTip: 'Öffnet sich in einem eigenen Tab, dort läuft er.', ownStation: 'Eigen', addOk: 'Sender hinzugefügt', addMissing: 'Name oder URL fehlt', addBadUrl: 'Die URL muss mit http:// oder https:// beginnen', addBtn: 'Hinzufügen', addName: 'Name', addUrl: 'https://... (Stream-URL)' },
+            zh: { insecure: '该电台无法在此播放', openTab: '在新标签页打开', openTip: '将在单独的标签页中打开并正常播放。', ownStation: '自定义', addOk: '已添加电台', addMissing: '缺少名称或网址', addBadUrl: '网址须以 http:// 或 https:// 开头', addBtn: '添加', addName: '名称', addUrl: 'https://...（流地址）' },
+            ja: { insecure: 'この局はここでは再生できません', openTab: '新しいタブで開く', openTip: '別タブで開けば再生できます。', ownStation: '自分の局', addOk: '局を追加しました', addMissing: '名前かURLが未入力です', addBadUrl: 'URLはhttp://かhttps://で始めてください', addBtn: '追加', addName: '名前', addUrl: 'https://...（ストリームURL）' },
+            ar: { insecure: 'لا يمكن تشغيل هذه المحطة هنا', openTab: 'فتح في تبويب', openTip: 'تُفتح في تبويب منفصل حيث تعمل.', ownStation: 'خاصة', addOk: 'تمت إضافة المحطة', addMissing: 'الاسم أو الرابط ناقص', addBadUrl: 'يجب أن يبدأ الرابط بـ http:// أو https://', addBtn: 'إضافة', addName: 'الاسم', addUrl: 'https://... (رابط البث)' }
         };
         Object.keys(i18nExtra).forEach(k => Object.assign(i18n[k], i18nExtra[k]));
 
@@ -456,6 +457,70 @@
         /** Últim recurs: el stream cru en una pestanya pròpia. */
         function openStreamInTab() {
             if (currentStation) window.open(currentStation.url_resolved, '_blank');
+        }
+
+        // ============================================================
+        // EMISSORES PRÒPIES
+        // Radio Browser no ho té tot: Ràdio Esparreguera, per exemple, no hi és.
+        // Aquestes es desen al navegador i es barregen amb la resta.
+        // ============================================================
+        const SEED_STATIONS = [
+            { name: 'Ràdio Esparreguera', url_resolved: 'https://enacast.com/radioesparreguera/streams/HD', country: 'Catalunya' }
+        ];
+
+        let customStations = [];
+
+        function loadCustomStations() {
+            const raw = localStorage.getItem('radioCustom');
+            if (raw === null) {
+                // Primer arrencada: hi posem les que sabem que hi falten.
+                customStations = SEED_STATIONS.map((s, i) => ({ ...s, stationuuid: 'custom-seed-' + i, favicon: '', custom: true }));
+                saveCustomStations();
+            } else {
+                try { customStations = JSON.parse(raw) || []; } catch (e) { customStations = []; }
+            }
+        }
+
+        function saveCustomStations() {
+            localStorage.setItem('radioCustom', JSON.stringify(customStations));
+        }
+
+        function toggleAddForm() {
+            const f = byId('add-form');
+            f.classList.toggle('hidden');
+            if (!f.classList.contains('hidden')) byId('add-name').focus();
+        }
+
+        function addCustomStation() {
+            const name = byId('add-name').value.trim();
+            const url = byId('add-url').value.trim();
+            if (!name || !url) { toast(t().addMissing); return; }
+            if (!/^https?:\/\//i.test(url)) { toast(t().addBadUrl); return; }
+
+            customStations.push({
+                stationuuid: 'custom-' + Date.now(),
+                name, url_resolved: url, country: t().ownStation, favicon: '', custom: true
+            });
+            saveCustomStations();
+            byId('add-name').value = '';
+            byId('add-url').value = '';
+            byId('add-form').classList.add('hidden');
+            toast(t().addOk);
+            fetchStations(byId('country-select').value);
+        }
+
+        function removeCustomStation(uuid) {
+            customStations = customStations.filter(s => s.stationuuid !== uuid);
+            saveCustomStations();
+            allStations = allStations.filter(s => s.stationuuid !== uuid);
+            renderStations(allStations);
+        }
+
+        /** Les pròpies van sempre al davant, i es filtren pel text cercat. */
+        function withCustom(list, query = '') {
+            const q = query.trim().toLowerCase();
+            const mine = q ? customStations.filter(s => s.name.toLowerCase().includes(q)) : customStations;
+            return [...mine, ...list];
         }
 
         // --- Estat ---
@@ -679,6 +744,9 @@
             byId('lbl-detached-title').innerText = x.floatTitle;
             byId('lbl-detached-desc').innerHTML = x.floatDesc;
             byId('lbl-detached-btn').innerText = x.backBtn;
+            byId('lbl-add-btn').innerText = x.addBtn;
+            byId('add-name').placeholder = x.addName;
+            byId('add-url').placeholder = x.addUrl;
             if (!currentStation) {
                 byId('player-title').innerText = x.noStation;
                 byId('player-subtitle').innerText = x.subStation;
@@ -706,7 +774,7 @@
                 const response = await fetch(url);
                 let data = await response.json();
                 data.sort((a, b) => a.name.trim().localeCompare(b.name.trim(), undefined, { sensitivity: 'base' }));
-                allStations = data.filter(s => s.url_resolved);
+                allStations = withCustom(data.filter(s => s.url_resolved));
                 renderStations(allStations);
             } catch (error) {
                 console.error("Error cargando emisoras:", error);
@@ -734,7 +802,7 @@
                     const response = await fetch(url);
                     let data = await response.json();
                     data.sort((a, b) => a.name.trim().localeCompare(b.name.trim(), undefined, { sensitivity: 'base' }));
-                    allStations = data.filter(s => s.url_resolved);
+                    allStations = withCustom(data.filter(s => s.url_resolved), query);
                     renderStations(allStations);
                 } catch (e) {
                     console.error("Search error", e);
@@ -782,22 +850,27 @@
                     </div>
                     <div class="flex-1 overflow-hidden pointer-events-none">
                         <div class="text-sm font-semibold text-white truncate">${station.name}</div>
-                        <div class="text-xs text-white/40 truncate flex items-center gap-1.5">
-                            <span class="truncate">${station.country || 'Radio'}</span>
-                            ${needsWorkaround(station) ? `<span class="http-badge">HTTP</span>` : ''}
-                        </div>
+                        <div class="text-xs text-white/40 truncate">${station.country || 'Radio'}</div>
                     </div>
                     <button class="fav-btn p-2 rounded-full hover:bg-white/10 transition-colors shrink-0 ${heartStyle}">
                         ${isFav ? ICON.heartOn('w-4 h-4 pointer-events-none') : ICON.heartOff('w-4 h-4 pointer-events-none')}
                     </button>
+                    ${station.custom ? `<button class="del-btn p-1 rounded-full text-white/20 hover:text-red-400 hover:bg-white/10 transition-colors shrink-0" title="Treure">
+                        <svg class="w-3.5 h-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>` : ''}
                 `;
 
                 card.addEventListener('click', (e) => {
-                    if (!e.target.closest('.fav-btn')) playStation(station);
+                    if (!e.target.closest('.fav-btn') && !e.target.closest('.del-btn')) playStation(station);
                 });
                 card.querySelector('.fav-btn').addEventListener('click', (e) => {
                     e.stopPropagation();
                     toggleFavorite(station);
+                });
+                const del = card.querySelector('.del-btn');
+                if (del) del.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    removeCustomStation(station.stationuuid);
                 });
 
                 list.appendChild(card);
@@ -966,6 +1039,24 @@
         let candIdx = 0;
         let candAutoplay = true;
         let chainFailed = false;
+        let triedAlternatives = false;
+
+        /**
+         * Moltes emissores surten repetides a la base de dades amb URLs diferents,
+         * i sovint la còpia bona és https mentre la primera és http o està morta.
+         * Busquem les germanes per nom abans de donar-nos per vençuts.
+         */
+        async function findAlternatives(station) {
+            try {
+                const url = 'https://de1.api.radio-browser.info/json/stations/search?limit=20&hidebroken=true&name='
+                          + encodeURIComponent(station.name.trim());
+                const data = await (await fetch(url)).json();
+                return data.map(s => s.url_resolved)
+                           .filter(u => u && /^https:/i.test(u) && !candidates.includes(u));
+            } catch (e) {
+                return [];
+            }
+        }
 
         function loadCandidate() {
             if (hls) { hls.destroy(); hls = null; }
@@ -994,7 +1085,21 @@
             }
         }
 
-        function failChain() {
+        async function failChain() {
+            // Abans de rendir-nos, mirem si la mateixa emissora té una altra
+            // entrada a la base de dades amb una URL que sí que funcioni.
+            if (!triedAlternatives && currentStation) {
+                triedAlternatives = true;
+                const asked = currentStation;
+                setStatus('loading');
+                const alts = await findAlternatives(asked);
+                if (currentStation && currentStation.stationuuid === asked.stationuuid && alts.length) {
+                    candidates.push(...alts);
+                    nextCandidate();
+                    return;
+                }
+            }
+
             chainFailed = true;
             isPlaying = false;
             setPlayIcons(false);
@@ -1039,6 +1144,7 @@
             candIdx = 0;
             candAutoplay = autoplay;
             chainFailed = false;
+            triedAlternatives = false;
             loadCandidate();
 
             if (allStations.length > 0) renderStations(allStations);
@@ -1157,6 +1263,8 @@
         (function init() {
             const savedLang = localStorage.getItem('radioLang');
             if (savedLang && i18n[savedLang]) currentLang = savedLang;
+
+            loadCustomStations();
 
             audio.volume = parseFloat(localStorage.getItem('radioVol') ?? '0.8');
             audio.muted = localStorage.getItem('radioMuted') === '1';

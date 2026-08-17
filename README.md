@@ -7,7 +7,7 @@ amb cercador mundial, preferides i un gadget flotant per damunt de l'escriptori.
 
 Un sol fitxer: `index.html`.
 
-## Emissores marcades amb `HTTP`
+## Emissores que només emeten per http
 
 Una pàgina servida per HTTPS no pot reproduir un stream `http://`: el navegador
 ho bloqueja (*mixed content*) i no es pot desactivar.
@@ -15,9 +15,17 @@ ho bloqueja (*mixed content*) i no es pot desactivar.
 L'aplicació ho resol sola, sense configurar res:
 
 1. Prova el mateix stream per `https://`. Unes quantes emissores hi responen.
-2. Si no, ofereix el botó **▶ Obrir en pestanya**: el stream s'obre en una
-   pestanya pròpia, on el navegador sí que el reprodueix perquè ja no és
-   contingut mixt.
+2. Busca si la mateixa emissora és repetida a la base de dades amb una altra
+   URL que sí que funcioni.
+3. Si res funciona, ofereix el botó **▶ Obrir en pestanya**: el stream s'obre
+   en una pestanya pròpia, on el navegador sí que el reprodueix perquè ja no
+   és contingut mixt.
+
+## Emissores pròpies
+
+Radio Browser no ho té tot (Ràdio Esparreguera, per exemple, no hi és).
+Amb el botó **+** pots afegir qualsevol emissora amb el seu nom i la URL del
+stream. Es desen al navegador i surten al capdamunt de la llista.
 
 ## Notes
 
