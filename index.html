@@ -244,6 +244,9 @@
                 <button id="btn-gadget-mode" onclick="enterGadgetMode()" class="text-white/30 hover:text-white transition-colors p-1 bg-white/5 hover:bg-white/10 rounded-md" title="Minimitzar a gadget flotant (sobre l'escriptori)">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                 </button>
+                <button id="btn-relay" onclick="configureRelay()" class="text-white/30 hover:text-white transition-colors p-1 bg-white/5 hover:bg-white/10 rounded-md" title="Relay HTTPS per a emissores http">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                </button>
             </div>
 
             <div class="text-sm font-semibold text-white/90 tracking-wide flex-1 text-center truncate" id="main-title">
@@ -420,22 +423,61 @@
             ar: { title: 'محطات الراديو', search: 'البحث عن محطة...', fav: 'المفضلة', noFav: 'أضف ما يصل إلى 5 مفضلات', noStation: 'اختر محطة', subStation: 'آلاف الخيارات', connecting: 'جارٍ الاتصال…', offline: 'المحطة غير متاحة', live: 'بث مباشر', noFavsShort: 'لا مفضلات', floatTitle: 'الأداة العائمة نشطة', floatDesc: 'المشغّل في نافذة صغيرة فوق سطح المكتب.<br>لا تغلق هذه العلامة: الصوت يخرج من هنا.', backBtn: 'العودة إلى النافذة الكبيرة', popupBlocked: 'حظر المتصفح النافذة العائمة. اسمح بالنوافذ المنبثقة.', pipHint: 'نصيحة: اسحب الزاوية لتغيير الحجم.', noStations: 'لم يتم العثور على محطات.', connError: 'خطأ في الاتصال.', favLimit: 'وصلت إلى حد 5 مفضلات.', copied: 'تم نسخ رابط البث' }
         };
         // Missatges per a emissores que només emeten per http (bloquejades en una pàgina https)
-        const i18nExtra = {
-            es: { insecure: 'Emisora sin HTTPS: el navegador la bloquea', insecureTip: 'Esta emisora solo emite por http y el navegador no la deja sonar en una página segura.' },
-            ca: { insecure: 'Emissora sense HTTPS: el navegador la bloqueja', insecureTip: 'Aquesta emissora només emet per http i el navegador no la deixa sonar en una pàgina segura.' },
-            fr: { insecure: 'Station sans HTTPS : bloquée par le navigateur', insecureTip: 'Cette station n\'émet qu\'en http ; le navigateur la bloque sur une page sécurisée.' },
-            it: { insecure: 'Stazione senza HTTPS: bloccata dal browser', insecureTip: 'Questa stazione trasmette solo in http e il browser la blocca su una pagina sicura.' },
-            de: { insecure: 'Sender ohne HTTPS: vom Browser blockiert', insecureTip: 'Dieser Sender sendet nur über http und wird auf einer sicheren Seite blockiert.' },
-            zh: { insecure: '该电台无 HTTPS：已被浏览器拦截', insecureTip: '该电台仅通过 http 播放，安全页面上会被浏览器拦截。' },
-            ja: { insecure: 'HTTPS非対応：ブラウザがブロック', insecureTip: 'この局はhttpのみのため、安全なページではブラウザがブロックします。' },
-            ar: { insecure: 'محطة بدون HTTPS: يحظرها المتصفح', insecureTip: 'تبث هذه المحطة عبر http فقط، ويحظرها المتصفح في صفحة آمنة.' }
+        const RELAY_PROMPT = {
+            es: 'URL de tu relay HTTPS (déjalo vacío para desactivarlo):',
+            ca: 'URL del teu relay HTTPS (deixa-ho buit per desactivar-lo):',
+            fr: 'URL de votre relais HTTPS (vide pour désactiver) :',
+            it: 'URL del tuo relay HTTPS (vuoto per disattivare):',
+            de: 'URL deines HTTPS-Relays (leer zum Deaktivieren):',
+            zh: '你的 HTTPS 中继地址（留空即停用）：',
+            ja: 'HTTPSリレーのURL（空欄で無効化）：',
+            ar: 'عنوان مُرحّل HTTPS الخاص بك (اتركه فارغًا للتعطيل):'
         };
+        const i18nExtra = {
+            es: { insecure: 'Emisora sin HTTPS: el navegador la bloquea', insecureTip: 'Esta emisora solo emite por http. Configura un relay HTTPS (icono ⚙) para poder oírla.', relaySaved: 'Relay guardado', relayCleared: 'Relay desactivado' },
+            ca: { insecure: 'Emissora sense HTTPS: el navegador la bloqueja', insecureTip: 'Aquesta emissora només emet per http. Configura un relay HTTPS (icona ⚙) per poder-la sentir.', relaySaved: 'Relay desat', relayCleared: 'Relay desactivat' },
+            fr: { insecure: 'Station sans HTTPS : bloquée par le navigateur', insecureTip: 'Cette station n\'émet qu\'en http. Configurez un relais HTTPS (icône ⚙).', relaySaved: 'Relais enregistré', relayCleared: 'Relais désactivé' },
+            it: { insecure: 'Stazione senza HTTPS: bloccata dal browser', insecureTip: 'Questa stazione trasmette solo in http. Configura un relay HTTPS (icona ⚙).', relaySaved: 'Relay salvato', relayCleared: 'Relay disattivato' },
+            de: { insecure: 'Sender ohne HTTPS: vom Browser blockiert', insecureTip: 'Dieser Sender sendet nur über http. Richte ein HTTPS-Relay ein (⚙).', relaySaved: 'Relay gespeichert', relayCleared: 'Relay deaktiviert' },
+            zh: { insecure: '该电台无 HTTPS：已被浏览器拦截', insecureTip: '该电台仅通过 http 播放。请配置 HTTPS 中继（⚙ 图标）。', relaySaved: '中继已保存', relayCleared: '中继已停用' },
+            ja: { insecure: 'HTTPS非対応：ブラウザがブロック', insecureTip: 'この局はhttpのみです。HTTPSリレー（⚙）を設定してください。', relaySaved: 'リレーを保存しました', relayCleared: 'リレーを無効にしました' },
+            ar: { insecure: 'محطة بدون HTTPS: يحظرها المتصفح', insecureTip: 'تبث هذه المحطة عبر http فقط. اضبط مُرحّل HTTPS (أيقونة ⚙).', relaySaved: 'تم حفظ المُرحّل', relayCleared: 'تم تعطيل المُرحّل' }
+        };
+        Object.keys(RELAY_PROMPT).forEach(k => i18nExtra[k].relayPrompt = RELAY_PROMPT[k]);
         Object.keys(i18nExtra).forEach(k => Object.assign(i18n[k], i18nExtra[k]));
 
         const t = () => i18n[currentLang];
 
-        /** Una pàgina https no pot reproduir un stream http: el navegador el bloqueja. */
-        const isBlockedStream = s => location.protocol === 'https:' && /^http:/i.test(s.url_resolved || '');
+        // ============================================================
+        // STREAMS http EN UNA PÀGINA https
+        // El navegador bloqueja el contingut mixt. Provem, per ordre:
+        //   1) el mateix stream per https (funciona en una minoria d'emissores)
+        //   2) el relay propi, si n'hi ha un de configurat
+        // ============================================================
+        const relayUrl = () => (localStorage.getItem('radioRelay') || '').trim();
+        const needsWorkaround = s => location.protocol === 'https:' && /^http:/i.test(s.url_resolved || '');
+
+        /** URLs a provar, en ordre, per a una emissora. */
+        function streamCandidates(station) {
+            const u = station.url_resolved;
+            if (!needsWorkaround(station)) return [u];
+            const list = ['https:' + u.slice(5)];
+            const relay = relayUrl();
+            if (relay) list.push(relay + (relay.includes('?') ? '&' : '?') + 'url=' + encodeURIComponent(u));
+            return list;
+        }
+
+        function configureRelay() {
+            const current = relayUrl();
+            const next = prompt(t().relayPrompt, current);
+            if (next === null) return;
+            const v = next.trim();
+            if (v) localStorage.setItem('radioRelay', v);
+            else localStorage.removeItem('radioRelay');
+            toast(v ? t().relaySaved : t().relayCleared);
+            if (allStations.length > 0) renderStations(allStations);
+            if (currentStation) playStation(currentStation, false);
+        }
 
         // --- Estat ---
         let currentLang = 'ca';
@@ -763,7 +805,7 @@
                         <div class="text-sm font-semibold text-white truncate">${station.name}</div>
                         <div class="text-xs text-white/40 truncate flex items-center gap-1.5">
                             <span class="truncate">${station.country || 'Radio'}</span>
-                            ${isBlockedStream(station) ? `<span class="http-badge">HTTP</span>` : ''}
+                            ${needsWorkaround(station) && !relayUrl() ? `<span class="http-badge">HTTP</span>` : ''}
                         </div>
                     </div>
                     <button class="fav-btn p-2 rounded-full hover:bg-white/10 transition-colors shrink-0 ${heartStyle}">
@@ -932,6 +974,51 @@
         // ============================================================
         // REPRODUCTOR
         // ============================================================
+
+        // Cadena d'URLs a provar per a l'emissora actual (directe → https → relay).
+        let candidates = [];
+        let candIdx = 0;
+        let candAutoplay = true;
+        let chainFailed = false;
+
+        function loadCandidate() {
+            if (hls) { hls.destroy(); hls = null; }
+            const url = candidates[candIdx];
+            if (!url) { failChain(); return; }
+
+            if (/\.m3u8/i.test(url) && window.Hls && Hls.isSupported()) {
+                hls = new Hls();
+                hls.loadSource(url);
+                hls.attachMedia(audio);
+                hls.on(Hls.Events.MANIFEST_PARSED, () => { if (candAutoplay) audio.play().catch(() => {}); });
+                hls.on(Hls.Events.ERROR, (_, d) => { if (d.fatal) nextCandidate(); });
+            } else {
+                audio.src = url;
+                if (candAutoplay) audio.play().catch(() => {});
+            }
+        }
+
+        function nextCandidate() {
+            if (candIdx < candidates.length - 1) {
+                candIdx++;
+                setStatus('loading');
+                loadCandidate();
+            } else {
+                failChain();
+            }
+        }
+
+        function failChain() {
+            chainFailed = true;
+            isPlaying = false;
+            setPlayIcons(false);
+            setLiveIndicators(false);
+            // Si l'emissora emet per http i no hi ha relay, el problema té nom i solució.
+            const noRelay = currentStation && needsWorkaround(currentStation) && !relayUrl();
+            setStatus(noRelay ? 'blocked' : 'error');
+            if (noRelay && candAutoplay) toast(t().insecureTip);
+        }
+
         function playStation(station, autoplay = true) {
             currentStation = station;
             localStorage.setItem('radioLast', JSON.stringify(station));
@@ -962,30 +1049,11 @@
 
             updateFavIcons();
 
-            if (hls) { hls.destroy(); hls = null; }
-
-            // Stream http dins d'una pàgina https: el navegador el bloquejaria
-            // sense dir res. Ho expliquem en comptes de deixar-lo en silenci.
-            if (isBlockedStream(station)) {
-                audio.pause();
-                setStatus('blocked');
-                if (autoplay) toast(t().insecureTip);
-                if (allStations.length > 0) renderStations(allStations);
-                renderFavorites();
-                return;
-            }
-
-            const url = station.url_resolved;
-            if (url.includes('.m3u8') && window.Hls && Hls.isSupported()) {
-                hls = new Hls();
-                hls.loadSource(url);
-                hls.attachMedia(audio);
-                hls.on(Hls.Events.MANIFEST_PARSED, () => { if (autoplay) audio.play().catch(() => {}); });
-                hls.on(Hls.Events.ERROR, (_, data) => { if (data.fatal) setStatus('error'); });
-            } else {
-                audio.src = url;
-                if (autoplay) audio.play().catch(() => {});
-            }
+            candidates = streamCandidates(station);
+            candIdx = 0;
+            candAutoplay = autoplay;
+            chainFailed = false;
+            loadCandidate();
 
             if (allStations.length > 0) renderStations(allStations);
             renderFavorites();
@@ -1002,7 +1070,8 @@
 
         function togglePlay() {
             if (!currentStation) return;
-            if (isBlockedStream(currentStation)) { setStatus('blocked'); toast(t().insecureTip); return; }
+            // Si tota la cadena va fallar, val la pena tornar-la a provar sencera.
+            if (chainFailed) { playStation(currentStation, true); return; }
             if (audio.paused) { setStatus('loading'); audio.play().catch(() => setStatus('error')); }
             else audio.pause();
         }
@@ -1067,9 +1136,9 @@
         });
         audio.addEventListener('error', () => {
             isPlaying = false;
-            setPlayIcons(false);
-            setLiveIndicators(false);
-            setStatus('error');
+            // Abans de rendir-nos, provem la següent URL de la cadena.
+            if (!chainFailed && candIdx < candidates.length - 1) { nextCandidate(); return; }
+            failChain();
         });
 
         document.getElementById('btn-play').addEventListener('click', togglePlay);
