@@ -303,6 +303,28 @@
             #flags-row::-webkit-scrollbar { display: none; }
 
             #detached-placeholder { width: 90%; }
+
+            /* Densitat: al mòbil la capçalera i el cercador es menjaven mig
+               pantalla i només hi cabien 6 emissores. */
+            #search-row { padding: 8px 12px; gap: 8px; }
+            #search-row input, #search-row select { padding-top: 7px; padding-bottom: 7px; font-size: 13px; }
+            #search-row select { width: 9rem; }
+
+            #fav-sidebar { padding: 6px 10px; }
+            #lbl-favorites { margin-bottom: 4px; }
+            #favorites-list > div { min-width: 128px; padding: 4px 8px; }
+            /* la barra de desplaçament horitzontal es menjava 20px de res */
+            #favorites-list { scrollbar-width: none; }
+            #favorites-list::-webkit-scrollbar { display: none; }
+
+            #stations-grid { padding: 8px 10px; }
+            #stations-list { gap: 7px; }
+            #stations-list .station-card { padding: 6px 9px; gap: 9px; border-radius: 10px; }
+            #stations-list .station-card > div:first-child { width: 34px; height: 34px; }
+            #stations-list .station-card .text-sm { font-size: 13px; line-height: 1.25; }
+            #stations-list .station-card .text-xs { font-size: 11px; line-height: 1.2; }
+            #stations-list .station-card .fav-btn,
+            #stations-list .station-card .del-btn { padding: 5px; }
         }
 
         /* Pantalles molt estretes: retallem marges perquè hi càpiga tot */
@@ -359,7 +381,7 @@
         </div>
 
         <!-- SEARCH AND FILTER ROW -->
-        <div class="px-6 py-4 flex gap-4 border-b border-white/5 bg-black/20 shrink-0">
+        <div id="search-row" class="px-6 py-4 flex gap-4 border-b border-white/5 bg-black/20 shrink-0">
             <div class="relative flex-1">
                 <svg class="w-4 h-4 absolute left-3 top-3 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                 <input type="text" id="search-input" placeholder="Cercar emissora (ex: Altafulla)..." class="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-10 pr-4 text-sm text-white placeholder-white/40 focus:outline-none focus:border-[#ffd600]/50 transition-colors">
