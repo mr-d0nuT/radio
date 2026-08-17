@@ -187,7 +187,9 @@
 
             /* El gadget flotant no existeix a iOS: el botó només confondria */
             #btn-gadget-mode { display: none !important; }
-            #flags-row { width: auto; flex: 1; }
+
+            /* Capçalera del mòbil: [+] 🍩 Ràdio ......... banderes */
+            #flags-row { width: auto; flex: 0 1 auto; }
             #flags-row > button { flex: 0 0 auto; }
 
             /* Les preferides passen de barra lateral a tira horitzontal */
@@ -221,9 +223,10 @@
             #detached-placeholder { width: 90%; }
         }
 
-        /* Pantalles molt estretes: el títol de la capçalera fa nosa */
+        /* Pantalles molt estretes: retallem marges perquè hi càpiga tot */
         @media (max-width: 420px) {
-            #main-title { display: none; }
+            #player-bar, #add-form { padding-left: 12px; padding-right: 12px; }
+            #flags-row { gap: 4px; }
         }
     </style>
 </head>
@@ -234,17 +237,18 @@
 
         <!-- MAC HEADER & FLAGS -->
         <div class="h-12 bg-black/40 border-b border-white/5 flex items-center px-4 justify-between select-none shrink-0">
-            <div class="flex items-center gap-2 w-1/4">
+            <div id="header-left" class="flex items-center gap-2 min-w-0">
                 <button id="btn-gadget-mode" onclick="enterGadgetMode()" class="text-white/30 hover:text-white transition-colors p-1 bg-white/5 hover:bg-white/10 rounded-md" title="Minimitzar a gadget flotant (sobre l'escriptori)">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                 </button>
                 <button id="btn-add-station" onclick="toggleAddForm()" class="text-white/30 hover:text-white transition-colors p-1 bg-white/5 hover:bg-white/10 rounded-md" title="Afegir una emissora que no és a la llista">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                 </button>
-            </div>
 
-            <div class="text-sm font-semibold text-white/90 tracking-wide flex-1 text-center truncate" id="main-title">
-                Emissores de ràdio
+                <div class="flex items-center gap-2 min-w-0 ml-1" id="main-title">
+                    <img src="donut.png" alt="" class="w-7 h-7 object-contain shrink-0 drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
+                    <span class="text-sm font-semibold text-white/90 tracking-wide truncate" id="main-title-text">Ràdio</span>
+                </div>
             </div>
 
             <div id="flags-row" class="flex items-center gap-1.5 w-1/4 justify-end shrink-0">
@@ -436,6 +440,10 @@
             ja: { insecure: 'この局はここでは再生できません', openTab: '新しいタブで開く', openTip: '別タブで開けば再生できます。', ownStation: '自分の局', addOk: '局を追加しました', addMissing: '名前かURLが未入力です', addBadUrl: 'URLはhttp://かhttps://で始めてください', addBtn: '追加', addName: '名前', addUrl: 'https://...（ストリームURL）' },
             ar: { insecure: 'لا يمكن تشغيل هذه المحطة هنا', openTab: 'فتح في تبويب', openTip: 'تُفتح في تبويب منفصل حيث تعمل.', ownStation: 'خاصة', addOk: 'تمت إضافة المحطة', addMissing: 'الاسم أو الرابط ناقص', addBadUrl: 'يجب أن يبدأ الرابط بـ http:// أو https://', addBtn: 'إضافة', addName: 'الاسم', addUrl: 'https://... (رابط البث)' }
         };
+        // Nom curt de la capçalera, al costat del dònut.
+        const SHORT_TITLE = { es: 'Radio', ca: 'Ràdio', fr: 'Radio', it: 'Radio', de: 'Radio', zh: '广播', ja: 'ラジオ', ar: 'راديو' };
+        Object.keys(SHORT_TITLE).forEach(k => i18nExtra[k].short = SHORT_TITLE[k]);
+
         Object.keys(i18nExtra).forEach(k => Object.assign(i18n[k], i18nExtra[k]));
 
         const t = () => i18n[currentLang];
@@ -741,7 +749,7 @@
 
             document.title = x.title;
             if (floatWin && !floatWin.closed && !currentStation) floatWin.document.title = x.title;
-            byId('main-title').innerText = x.title;
+            byId('main-title-text').innerText = x.short;
             byId('search-input').placeholder = x.search;
             byId('favorites-empty').innerText = x.noFav;
             byId('lbl-detached-title').innerText = x.floatTitle;
