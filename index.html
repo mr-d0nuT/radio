@@ -184,11 +184,10 @@
         .ambient-layer {
             position: absolute; inset: -25%;
             background-size: cover; background-position: center;
-            filter: blur(90px) saturate(220%);
+            filter: blur(72px) saturate(220%);
             opacity: 0;
             transition: opacity 1.4s ease;
             transform: scale(1.6);
-            will-change: opacity, transform;
         }
         .ambient-layer.on { opacity: .55; animation: ambient-drift 44s ease-in-out infinite alternate; }
 
@@ -214,6 +213,40 @@
         @media (prefers-reduced-motion: reduce) {
             .ambient-layer.on { animation: none; }
         }
+
+        /* ============================================================
+           VISUALITZADOR
+           Espectre real del so que sona, llegit amb la Web Audio API.
+           ============================================================ */
+        .viz {
+            position: absolute; left: 0; right: 0; bottom: 0;
+            width: 100%; pointer-events: none;
+        }
+        /* Res de transicions d'opacitat: quan no hi ha dades, simplement
+           no dibuixem. Així el canvas no es pot quedar a mig esvair-se. */
+        .viz:not(.on) { visibility: hidden; }
+        #viz-main {
+            bottom: 100%; height: 74px; z-index: 2;
+            /* Una mica d'aire als costats. Amb width:auto un <canvas> no
+               s'estira (és un element reemplaçat), cal dir-li l'amplada. */
+            left: 18px; right: auto; width: calc(100% - 36px);
+            /* una base fosca perquè els blocs de color ressaltin com a la referència */
+            background: linear-gradient(to top, rgba(0,0,0,.8) 0%, rgba(0,0,0,.55) 55%, rgba(0,0,0,0) 100%);
+        }
+        #viz-gadget { height: 44px; z-index: 0; }
+
+        /* L'ambient batega amb els greus */
+        .ambient-layer.on {
+            transform-origin: center;
+            transition: opacity 1.4s ease;
+        }
+        #view-ambient .ambient-layer.on,
+        #ambient .ambient-layer.on {
+            opacity: calc(var(--pulse-base, .32) + var(--bass, 0) * .22);
+        }
+        #ambient .ambient-layer.on { --pulse-base: .55; }
+        #view-ambient .ambient-layer.on { --pulse-base: .32; }
+        #gadget-ambient .ambient-layer.on { --pulse-base: .45; }
 
         /* ============================================================
            MÒBIL / TAULETA — la finestra "d'escriptori" passa a pantalla completa
@@ -371,6 +404,7 @@
 
         <!-- PLAYER BOTTOM BAR -->
         <div id="player-bar" class="h-20 bg-black/60 border-t border-white/5 flex items-center px-6 gap-4 shrink-0 backdrop-blur-xl">
+            <canvas id="viz-main" class="viz"></canvas>
             <div id="player-info" class="flex items-center gap-3 w-1/3 min-w-0">
                 <div class="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center overflow-hidden shrink-0" id="player-artwork-container">
                     <span class="text-white/40 text-xs font-bold" id="player-initial">R</span>
@@ -475,6 +509,7 @@
         </div>
 
         <div id="gadget-favs" class="flex items-center justify-center gap-1.5 shrink-0"></div>
+        <canvas id="viz-gadget" class="viz"></canvas>
     </div>
 
     <div id="toast"></div>
@@ -649,7 +684,9 @@
 
         // --- Estat ---
         let currentLang = 'ca';
+        // L'element d'àudio es recrea segons faci falta CORS o no (vegeu useAudioMode).
         let audio = new Audio();
+        let audioCors = false;
         let hls = null;
         let isPlaying = false;
         let currentStation = null;
@@ -1167,6 +1204,134 @@
         }
 
         // ============================================================
+        // VISUALITZADOR
+        // Dibuixa l'espectre real del so. Si l'emissora no permet CORS no hi ha
+        // dades i el canvas es queda amagat: preferim no ensenyar res abans que
+        // una animació falsa que fingeixi seguir la música.
+        // ============================================================
+        let vizRAF = null;
+        const vizPeaks = {};
+
+        // Referències i contextos en memòria: buscar-los i demanar el context
+        // a cada fotograma costa car quan es fa 60 vegades per segon.
+        const vizCache = {};
+        let vizRefreshIn = 0;
+
+        function vizTargets() {
+            if (vizRefreshIn-- <= 0) {
+                vizRefreshIn = 30;
+                [['viz-main', 72], ['viz-gadget', 28]].forEach(([id, maxH]) => {
+                    const cv = byId(id);
+                    if (!cv) { delete vizCache[id]; return; }
+                    if (!vizCache[id] || vizCache[id].cv !== cv) {
+                        vizCache[id] = { cv, ctx: cv.getContext('2d'), maxH, id };
+                    }
+                });
+            }
+            return Object.values(vizCache);
+        }
+
+        let lastFrame = 0, lastBass = -1;
+
+        function drawViz(now) {
+            vizRAF = requestAnimationFrame(drawViz);
+
+            // 33 ms: per a un equalitzador de blocs, 30 imatges per segon es
+            // veuen igual de fluides i estalvien la meitat de la feina.
+            if (now - lastFrame < 33) return;
+            lastFrame = now || 0;
+
+            const live = vizLive();
+            const targets = vizTargets();
+
+            targets.forEach(({ cv, ctx }) => {
+                if (cv.classList.contains('on') !== live) cv.classList.toggle('on', live);
+                if (!live && cv.width) ctx.clearRect(0, 0, cv.width, cv.height);
+            });
+            if (!live) {
+                if (lastBass !== 0) { lastBass = 0; document.documentElement.style.setProperty('--bass', 0); }
+                return;
+            }
+
+            analyser.getByteFrequencyData(freqData);
+
+            // Els greus mouen l'ambient de tota l'app. Ho actualitzem només quan
+            // canvia de debò: cada canvi repinta una capa enorme i desenfocada.
+            let bass = 0;
+            for (let i = 0; i < 8; i++) bass += freqData[i];
+            bass = Math.max(0, Math.min(1, ((bass / 8) - 120) / 130));
+            bass = Math.round(bass * 12) / 12;
+            if (bass !== lastBass) {
+                lastBass = bass;
+                document.documentElement.style.setProperty('--bass', bass);
+                if (floatWin && !floatWin.closed) {
+                    floatWin.document.documentElement.style.setProperty('--bass', bass);
+                }
+            }
+
+            targets.forEach(({ cv, ctx, maxH, id }) => {
+                if (!cv.clientWidth) return;
+                const dpr = Math.min(2, (cv.ownerDocument.defaultView || window).devicePixelRatio || 1);
+                const w = cv.clientWidth, h = cv.clientHeight;
+                if (cv.width !== w * dpr || cv.height !== h * dpr) {
+                    cv.width = w * dpr; cv.height = h * dpr;
+                    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                }
+                ctx.clearRect(0, 0, w, h);
+
+                // Equalitzador de blocs: cada columna és una pila de segments
+                // separats, i el color el marca la columna (no l'alçada), fent
+                // un escombrat de to de violeta a cian al llarg de l'espectre.
+                const bars = Math.max(32, Math.min(96, Math.floor(w / 8)));
+                const gap = id === 'viz-gadget' ? 2 : 3;
+                const bw = (w - gap * (bars - 1)) / bars;
+
+                const segGap = 2;
+                const segH = id === 'viz-gadget' ? 3 : 5;
+                const segs = Math.max(3, Math.floor(maxH / (segH + segGap)));
+
+                let peaks = vizPeaks[id];
+                if (!peaks || peaks.length !== bars) peaks = vizPeaks[id] = new Float32Array(bars);
+
+                // Els MP3 de ràdio tallen cap als 15 kHz: la part alta de
+                // l'espectre és sempre buida i deixaria mudes les últimes
+                // bandes (justament les blaves). Analitzem només el que sona.
+                const usable = Math.floor(freqData.length * 0.62);
+
+                ctx.shadowBlur = 0;
+                for (let i = 0; i < bars; i++) {
+                    // Repartiment logarítmic: sense això, gairebé tot el dibuix
+                    // serien aguts inaudibles i amb prou feines es mouria res.
+                    const from = Math.floor(Math.pow(i / bars, 1.7) * usable);
+                    const to = Math.max(from + 1, Math.floor(Math.pow((i + 1) / bars, 1.7) * usable));
+                    let v = 0;
+                    for (let j = from; j < to; j++) v = Math.max(v, freqData[j]);
+
+                    const level = v / 255;
+                    peaks[i] = Math.max(level, peaks[i] - 0.010);
+
+                    const hue = (270 + (i / Math.max(1, bars - 1)) * 280) % 360;
+                    const x = i * (bw + gap);
+                    const lit = Math.round(level * segs);
+
+                    ctx.fillStyle = 'hsl(' + hue.toFixed(1) + ', 95%, 55%)';
+                    for (let k = 0; k < lit; k++) {
+                        ctx.fillRect(x, h - (k + 1) * (segH + segGap) + segGap, bw, segH);
+                    }
+
+                    // El bloc del pic queda enlaire i va baixant a poc a poc
+                    const pk = Math.round(peaks[i] * segs);
+                    if (pk > lit) {
+                        ctx.fillStyle = 'hsl(' + hue.toFixed(1) + ', 100%, 78%)';
+                        ctx.fillRect(x, h - (pk + 1) * (segH + segGap) + segGap, bw, segH);
+                    }
+                }
+            });
+        }
+
+        function startViz() { if (!vizRAF) vizRAF = requestAnimationFrame(drawViz); }
+
+        // ============================================================
         // ESTAT DEL STREAM (connectant / en directe / caigut)
         // ============================================================
         function setStatus(kind) {
@@ -1201,6 +1366,7 @@
         let chainFailed = false;
         let triedAlternatives = false;
         let candTimer = null;
+        let candMode = 0;      // 0 = amb CORS (visualitzador), 1 = sense
 
         /**
          * Moltes emissores surten repetides a la base de dades amb URLs diferents,
@@ -1233,18 +1399,70 @@
 
         function clearCandTimer() { if (candTimer) { clearTimeout(candTimer); candTimer = null; } }
 
+        // ============================================================
+        // MOTOR D'ÀUDIO
+        //
+        // Per analitzar el so cal que l'element tingui crossOrigin i que el
+        // servidor enviï capçaleres CORS. Un cop connectes un element a la Web
+        // Audio API, si després hi poses un stream sense CORS emmudeix per
+        // sempre. Per això no en reaprofitem cap: en creem un de nou cada
+        // vegada que canvia el mode, i el vell es llença.
+        // ============================================================
+        let audioCtx = null, analyser = null, freqData = null;
+
+        function useAudioMode(wantCors) {
+            if (audioCors === wantCors && audio.src !== '') return;
+            const wasVol = audio.volume, wasMuted = audio.muted;
+            try { audio.pause(); audio.removeAttribute('src'); audio.load(); } catch (e) {}
+
+            audio = new Audio();
+            if (wantCors) audio.crossOrigin = 'anonymous';
+            audio.volume = wasVol;
+            audio.muted = wasMuted;
+            audioCors = wantCors;
+            attachAudioListeners(audio);
+            if (wantCors) connectAnalyser();
+        }
+
+        function connectAnalyser() {
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    analyser = audioCtx.createAnalyser();
+                    analyser.fftSize = 1024;
+                    analyser.smoothingTimeConstant = 0.75;
+                    freqData = new Uint8Array(analyser.frequencyBinCount);
+                    analyser.connect(audioCtx.destination);
+                }
+                audioCtx.createMediaElementSource(audio).connect(analyser);
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+            } catch (e) {
+                console.warn('Analitzador no disponible:', e);
+                analyser = null;
+            }
+        }
+
+        /** Hi ha dades reals per dibuixar? */
+        const vizLive = () => !!(analyser && audioCors && isPlaying);
+
         function loadCandidate() {
             if (hls) { hls.destroy(); hls = null; }
             clearCandTimer();
             const url = candidates[candIdx];
             if (!url) { failChain(); return; }
 
+            // Provem primer amb CORS, que és el que permet el visualitzador.
+            // Si l'emissora no l'accepta, la mateixa URL es reintenta sense.
+            useAudioMode(candMode === 0);
+
             // Hi ha streams que no responen ni fallen: es queden penjats per
             // sempre (un port que no parla TLS, per exemple) i el navegador no
             // dispara cap error. Si no sona a temps, passem a la següent.
             if (candAutoplay) candTimer = setTimeout(() => {
-                console.warn('Sense resposta a temps, provem una altra URL:', url);
+                console.warn('Sense resposta a temps:', url, '(mode CORS:', candMode === 0, ')');
                 nextCandidate();
+            // Un rebuig de CORS arriba de seguida, així que aquesta espera només
+            // ha de cobrir els streams que es pengen sense dir res.
             }, 9000);
 
             if (/\.m3u8/i.test(url) && window.Hls && Hls.isSupported()) {
@@ -1261,8 +1479,13 @@
 
         function nextCandidate() {
             clearCandTimer();
-            if (candIdx < candidates.length - 1) {
+            if (candMode === 0) {
+                // Potser només ha fallat per CORS: mateixa URL, sense analitzador.
+                candMode = 1;
+                loadCandidate();
+            } else if (candIdx < candidates.length - 1) {
                 candIdx++;
+                candMode = 0;
                 setStatus('loading');
                 loadCandidate();
             } else {
@@ -1332,6 +1555,7 @@
             candAutoplay = autoplay;
             chainFailed = false;
             triedAlternatives = false;
+            candMode = 0;
             loadCandidate();
 
             if (allStations.length > 0) renderStations(allStations);
@@ -1395,9 +1619,10 @@
             if (b2) b2.innerHTML = playing ? ICON.pause('w-6 h-6') : ICON.play('w-6 h-6');
         }
 
-        audio.addEventListener('play', () => { isPlaying = true; setPlayIcons(true); });
-        audio.addEventListener('waiting', () => setStatus('loading'));
-        audio.addEventListener('playing', () => {
+        function attachAudioListeners(el) {
+        el.addEventListener('play', () => { isPlaying = true; setPlayIcons(true); });
+        el.addEventListener('waiting', () => setStatus('loading'));
+        el.addEventListener('playing', () => {
             clearCandTimer();
             isPlaying = true;
             setPlayIcons(true);
@@ -1406,7 +1631,7 @@
             if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
             if (allStations.length > 0) renderStations(allStations);
         });
-        audio.addEventListener('pause', () => {
+        el.addEventListener('pause', () => {
             clearCandTimer();
             isPlaying = false;
             setPlayIcons(false);
@@ -1415,12 +1640,15 @@
             if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
             if (allStations.length > 0) renderStations(allStations);
         });
-        audio.addEventListener('error', () => {
+        el.addEventListener('error', () => {
             isPlaying = false;
-            // Abans de rendir-nos, provem la següent URL de la cadena.
-            if (!chainFailed && candIdx < candidates.length - 1) { nextCandidate(); return; }
+            // Abans de rendir-nos, que nextCandidate decideixi què queda per
+            // provar: el mateix stream sense CORS, o la següent URL.
+            if (!chainFailed) { nextCandidate(); return; }
             failChain();
         });
+        }
+        attachAudioListeners(audio);
 
         document.getElementById('btn-play').addEventListener('click', togglePlay);
         document.getElementById('btn-gadget-play').addEventListener('click', togglePlay);
@@ -1478,6 +1706,7 @@
             } catch (e) {}
 
             renderFavorites();
+            startViz();
             fetchStations(currentLang === 'ca' ? 'Catalunya' : byId('country-select').value);
         })();
     </script>
