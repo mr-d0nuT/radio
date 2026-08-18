@@ -1028,14 +1028,18 @@
 
             const url = countryOrRegion === 'Catalunya'
                 ? 'https://de1.api.radio-browser.info/json/stations/search?language=catalan&limit=300&hidebroken=true'
-                : `https://de1.api.radio-browser.info/json/stations/search?countrycode=${countryOrRegion}&limit=100&hidebroken=true`;
+                // Sense límit: les volem totes. Al llistat es pinten per
+                // tandes, així que tenir-ne milers a la memòria no fa mal.
+                : `https://de1.api.radio-browser.info/json/stations/search?countrycode=${countryOrRegion}`
+                  + `&limit=100000&hidebroken=true&order=clickcount&reverse=true`;
 
             try {
                 const response = await fetch(url);
                 let data = await response.json();
                 data.sort((a, b) => a.name.trim().localeCompare(b.name.trim(), undefined, { sensitivity: 'base' }));
                 allStations = withCustom(data.filter(s => s.url_resolved), { region: countryOrRegion });
-                renderStations(allStations);
+                renderStations(allStations, true);
+                byId('stations-grid').scrollTop = 0;
             } catch (error) {
                 console.error("Error cargando emisoras:", error);
                 byId('stations-list').innerHTML = `<div class="col-span-full text-center text-white/50 py-10">${t().connError}</div>`;
@@ -1057,13 +1061,15 @@
                 byId('loading-spinner').style.display = 'flex';
                 byId('stations-list').classList.add('hidden');
 
-                const url = `https://de1.api.radio-browser.info/json/stations/search?name=${encodeURIComponent(query)}&hidebroken=true&limit=100`;
+                const url = `https://de1.api.radio-browser.info/json/stations/search?name=${encodeURIComponent(query)}`
+                          + `&hidebroken=true&limit=200&order=clickcount&reverse=true`;
                 try {
                     const response = await fetch(url);
                     let data = await response.json();
                     data.sort((a, b) => a.name.trim().localeCompare(b.name.trim(), undefined, { sensitivity: 'base' }));
                     allStations = withCustom(data.filter(s => s.url_resolved), { query });
-                    renderStations(allStations);
+                    renderStations(allStations, true);
+                    byId('stations-grid').scrollTop = 0;
                 } catch (e) {
                     console.error("Search error", e);
                 }
@@ -1080,9 +1086,16 @@
         // ============================================================
         // RENDER
         // ============================================================
-        function renderStations(stations) {
+        // Països com els Estats Units tenen milers d'emissores. Les guardem
+        // totes, però només en pintem un tros: la resta va apareixent a mesura
+        // que l'usuari baixa. Pintar-les totes de cop encallaria el mòbil.
+        const RENDER_CHUNK = 150;
+        let renderLimit = RENDER_CHUNK;
+
+        function renderStations(stations, reset) {
             const list = byId('stations-list');
             if (!list) return;
+            if (reset) renderLimit = RENDER_CHUNK;
             list.innerHTML = '';
 
             if (stations.length === 0) {
@@ -1090,7 +1103,14 @@
                 return;
             }
 
-            stations.forEach(station => {
+            appendStations(stations, 0, Math.min(renderLimit, stations.length));
+        }
+
+        function appendStations(stations, from, to) {
+            const list = byId('stations-list');
+            if (!list) return;
+
+            stations.slice(from, to).forEach(station => {
                 const isFav = favorites.some(f => f.stationuuid === station.stationuuid);
                 const isActive = currentStation && currentStation.stationuuid === station.stationuuid;
 
@@ -1101,7 +1121,7 @@
                 card.className = `station-card flex items-center p-3 rounded-xl border bg-black/40 cursor-pointer gap-3 ${borderStyle}`;
 
                 const logoHtml = station.favicon
-                    ? `<img src="${station.favicon}" class="w-full h-full object-cover ${isActive && isPlaying ? 'vinyl-spin' : 'rounded-lg'}" onerror="this.outerHTML='<span class=\\'text-white/40 font-bold\\'>${station.name.charAt(0)}</span>'">`
+                    ? `<img src="${station.favicon}" loading="lazy" decoding="async" class="w-full h-full object-cover ${isActive && isPlaying ? 'vinyl-spin' : 'rounded-lg'}" onerror="this.outerHTML='<span class=\\'text-white/40 font-bold\\'>${station.name.charAt(0)}</span>'">`
                     : `<span class="text-white/40 font-bold">${station.name.charAt(0)}</span>`;
 
                 card.innerHTML = `
@@ -1136,6 +1156,17 @@
                 list.appendChild(card);
             });
         }
+
+        /** En arribar a prop del final, pintem la tanda següent. */
+        function growStations() {
+            const grid = byId('stations-grid');
+            if (!grid || renderLimit >= allStations.length) return;
+            if (grid.scrollTop + grid.clientHeight < grid.scrollHeight - 500) return;
+            const from = renderLimit;
+            renderLimit = Math.min(renderLimit + RENDER_CHUNK, allStations.length);
+            appendStations(allStations, from, renderLimit);
+        }
+        document.getElementById('stations-grid').addEventListener('scroll', growStations, { passive: true });
 
         function renderFavorites() {
             const list = byId('favorites-list');
