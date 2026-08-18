@@ -267,7 +267,7 @@
                Més alta perquè el dònut hi càpiga sencer, sense escapçar-lo. */
             #header-bar { min-height: 4.75rem; padding-top: 10px; padding-bottom: 10px; }
             #logo-donut { height: 3.25rem; width: auto; }
-            #flags-row { width: auto; flex: 0 1 auto; }
+            #flags-row { width: auto; flex: 0 1 auto; row-gap: 5px; }
             #flags-row > button { flex: 0 0 auto; }
 
             /* Les preferides passen de barra lateral a tira horitzontal */
@@ -295,8 +295,10 @@
             #player-controls .flex { gap: 18px; }
 
             /* Capçalera: les banderes es poden fer scroll en comptes d'esclafar-se */
-            #flags-row { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-            #flags-row::-webkit-scrollbar { display: none; }
+            /* Al mòbil les fem una mica més petites perquè quedin 8 + 7
+               i no se n'escapi cap a una tercera fila. */
+            #flags-row { flex-wrap: wrap; max-width: 180px; gap: 5px; }
+            #flags-row > button { width: 18px; height: 12px; }
 
             #detached-placeholder { width: 90%; }
 
@@ -362,7 +364,7 @@
                 </div>
             </div>
 
-            <div id="flags-row" class="flex items-center gap-1.5 w-1/4 justify-end shrink-0">
+            <div id="flags-row" class="flex flex-wrap items-center gap-1.5 justify-end shrink-0 max-w-[206px] gap-y-1.5">
                 <button onclick="changeLanguage('es', 'ES')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="España"><img src="https://flagcdn.com/w20/es.png" class="w-full h-full object-cover"></button>
                 <button onclick="changeLanguage('ca', 'Catalunya')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="Catalunya">
                     <svg viewBox="0 0 900 600" class="w-full h-full object-cover"><rect width="900" height="600" fill="#fcd116"/><rect width="900" height="66.66" y="66.66" fill="#ce1126"/><rect width="900" height="66.66" y="200" fill="#ce1126"/><rect width="900" height="66.66" y="333.33" fill="#ce1126"/><rect width="900" height="66.66" y="466.66" fill="#ce1126"/></svg>
@@ -373,6 +375,13 @@
                 <button onclick="changeLanguage('zh', 'CN')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="China"><img src="https://flagcdn.com/w20/cn.png" class="w-full h-full object-cover"></button>
                 <button onclick="changeLanguage('ja', 'JP')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="Japan"><img src="https://flagcdn.com/w20/jp.png" class="w-full h-full object-cover"></button>
                 <button onclick="changeLanguage('ar', 'MA')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="Morocco"><img src="https://flagcdn.com/w20/ma.png" class="w-full h-full object-cover"></button>
+                <button onclick="changeLanguage('en', 'GB')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="United Kingdom"><img src="https://flagcdn.com/w20/gb.png" class="w-full h-full object-cover"></button>
+                <button onclick="changeLanguage('en', 'US')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="United States"><img src="https://flagcdn.com/w20/us.png" class="w-full h-full object-cover"></button>
+                <button onclick="changeLanguage('pt', 'PT')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="Portugal"><img src="https://flagcdn.com/w20/pt.png" class="w-full h-full object-cover"></button>
+                <button onclick="changeLanguage('pt', 'BR')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="Brasil"><img src="https://flagcdn.com/w20/br.png" class="w-full h-full object-cover"></button>
+                <button onclick="changeLanguage('es', 'AR')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="Argentina"><img src="https://flagcdn.com/w20/ar.png" class="w-full h-full object-cover"></button>
+                <button onclick="changeLanguage('es', 'CO')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="Colombia"><img src="https://flagcdn.com/w20/co.png" class="w-full h-full object-cover"></button>
+                <button onclick="changeLanguage('es', 'CL')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="Chile"><img src="https://flagcdn.com/w20/cl.png" class="w-full h-full object-cover"></button>
             </div>
         </div>
 
@@ -391,6 +400,13 @@
                 <option value="CN" class="bg-gray-900">China</option>
                 <option value="JP" class="bg-gray-900">Japón</option>
                 <option value="MA" class="bg-gray-900">Marruecos</option>
+                <option value="GB" class="bg-gray-900">Reino Unido</option>
+                <option value="US" class="bg-gray-900">Estados Unidos</option>
+                <option value="PT" class="bg-gray-900">Portugal</option>
+                <option value="BR" class="bg-gray-900">Brasil</option>
+                <option value="AR" class="bg-gray-900">Argentina</option>
+                <option value="CO" class="bg-gray-900">Colombia</option>
+                <option value="CL" class="bg-gray-900">Chile</option>
             </select>
         </div>
 
@@ -546,6 +562,8 @@
             de: { title: 'Radiosender', search: 'Sender suchen...', fav: 'FAVORITEN', noFav: 'Fügen Sie bis zu 5 Favoriten hinzu.', noStation: 'Wählen Sie einen Sender', subStation: 'Tausende von Optionen', connecting: 'Verbinden…', offline: 'Sender nicht verfügbar', live: 'Live', noFavsShort: 'Keine Favoriten', floatTitle: 'Schwebendes Gadget aktiv', floatDesc: 'Der Player läuft in einem kleinen Fenster über dem Desktop.<br>Diesen Tab nicht schließen: der Ton kommt von hier.', backBtn: 'Zurück zum großen Fenster', popupBlocked: 'Der Browser hat das Fenster blockiert. Pop-ups erlauben.', pipHint: 'Tipp: Fenstergröße an der Ecke ziehen.', noStations: 'Keine Sender gefunden.', connError: 'Verbindungsfehler.', favLimit: 'Grenze von 5 Favoriten erreicht.', copied: 'Stream-Link kopiert' },
             zh: { title: '广播电台', search: '搜索电台...', fav: '收藏', noFav: '最多添加5个收藏夹', noStation: '选择一个电台', subStation: '数以千计的选择', connecting: '连接中…', offline: '电台不可用', live: '直播中', noFavsShort: '无收藏', floatTitle: '悬浮小工具已启用', floatDesc: '播放器在桌面上的小窗口中。<br>请勿关闭此标签页：声音来自这里。', backBtn: '返回大窗口', popupBlocked: '浏览器阻止了浮动窗口，请允许弹出窗口。', pipHint: '提示：拖动窗口角落可调整大小。', noStations: '未找到电台。', connError: '连接错误。', favLimit: '收藏已达5个上限。', copied: '已复制音频流链接' },
             ja: { title: 'ラジオ局', search: '局を検索...', fav: 'お気に入り', noFav: 'お気に入りを最大5つ追加', noStation: '局を選択', subStation: '何千ものオプション', connecting: '接続中…', offline: '利用できません', live: '生放送', noFavsShort: 'お気に入りなし', floatTitle: 'フローティング表示中', floatDesc: 'プレーヤーはデスクトップ上の小窓で動作中です。<br>このタブは閉じないでください。音声はここから出ます。', backBtn: '大きな窓に戻る', popupBlocked: 'ブラウザが小窓をブロックしました。ポップアップを許可してください。', pipHint: 'ヒント：角をドラッグしてサイズ変更できます。', noStations: '局が見つかりません。', connError: '接続エラー。', favLimit: 'お気に入りは5件までです。', copied: 'ストリームのリンクをコピーしました' },
+            en: { title: 'Radio stations', search: 'Search a station (e.g. Altafulla)...', fav: 'FAVOURITES', noFav: 'Add up to 5 favourites for quick access.', noStation: 'Select a station', subStation: 'Thousands of options', connecting: 'Connecting…', offline: 'Station unavailable', live: 'Live', noFavsShort: 'No favourites', floatTitle: 'Floating gadget active', floatDesc: 'The player is in a small window above your desktop.<br>Don\'t close this tab: the sound comes from here.', backBtn: 'Back to the big window', popupBlocked: 'The browser blocked the floating window. Allow pop-ups for this site.', pipHint: 'Tip: drag the corner of the little window to shrink it.', noStations: 'No stations found.', connError: 'Connection error.', favLimit: 'You have reached the limit of 5 favourites.', copied: 'Stream link copied' },
+            pt: { title: 'Estações de rádio', search: 'Procurar estação...', fav: 'FAVORITAS', noFav: 'Adicione até 5 favoritas para acesso rápido.', noStation: 'Selecione uma estação', subStation: 'Milhares de opções', connecting: 'Conectando…', offline: 'Estação indisponível', live: 'Ao vivo', noFavsShort: 'Sem favoritas', floatTitle: 'Gadget flutuante ativo', floatDesc: 'O player está numa janela pequena sobre a área de trabalho.<br>Não feche esta aba: o som sai daqui.', backBtn: 'Voltar à janela grande', popupBlocked: 'O navegador bloqueou a janela flutuante. Permita pop-ups neste site.', pipHint: 'Dica: arraste o canto da janelinha para diminuí-la.', noStations: 'Nenhuma estação encontrada.', connError: 'Erro de conexão.', favLimit: 'Você atingiu o limite de 5 favoritas.', copied: 'Link do stream copiado' },
             ar: { title: 'محطات الراديو', search: 'البحث عن محطة...', fav: 'المفضلة', noFav: 'أضف ما يصل إلى 5 مفضلات', noStation: 'اختر محطة', subStation: 'آلاف الخيارات', connecting: 'جارٍ الاتصال…', offline: 'المحطة غير متاحة', live: 'بث مباشر', noFavsShort: 'لا مفضلات', floatTitle: 'الأداة العائمة نشطة', floatDesc: 'المشغّل في نافذة صغيرة فوق سطح المكتب.<br>لا تغلق هذه العلامة: الصوت يخرج من هنا.', backBtn: 'العودة إلى النافذة الكبيرة', popupBlocked: 'حظر المتصفح النافذة العائمة. اسمح بالنوافذ المنبثقة.', pipHint: 'نصيحة: اسحب الزاوية لتغيير الحجم.', noStations: 'لم يتم العثور على محطات.', connError: 'خطأ في الاتصال.', favLimit: 'وصلت إلى حد 5 مفضلات.', copied: 'تم نسخ رابط البث' }
         };
         // Missatges per a emissores que només emeten per http (bloquejades en una pàgina https)
@@ -557,10 +575,12 @@
             de: { insecure: 'Dieser Sender kann hier nicht laufen', openTab: 'In neuem Tab öffnen', openTip: 'Öffnet sich in einem eigenen Tab, dort läuft er.', ownStation: 'Eigen', addOk: 'Sender hinzugefügt', addMissing: 'Name oder URL fehlt', addBadUrl: 'Die URL muss mit http:// oder https:// beginnen', addBtn: 'Hinzufügen', addName: 'Name', addUrl: 'https://... (Stream-URL)' },
             zh: { insecure: '该电台无法在此播放', openTab: '在新标签页打开', openTip: '将在单独的标签页中打开并正常播放。', ownStation: '自定义', addOk: '已添加电台', addMissing: '缺少名称或网址', addBadUrl: '网址须以 http:// 或 https:// 开头', addBtn: '添加', addName: '名称', addUrl: 'https://...（流地址）' },
             ja: { insecure: 'この局はここでは再生できません', openTab: '新しいタブで開く', openTip: '別タブで開けば再生できます。', ownStation: '自分の局', addOk: '局を追加しました', addMissing: '名前かURLが未入力です', addBadUrl: 'URLはhttp://かhttps://で始めてください', addBtn: '追加', addName: '名前', addUrl: 'https://...（ストリームURL）' },
+            en: { insecure: 'This station cannot play here', openTab: 'Open in a tab', openTip: 'It opens in a separate tab, where it does work.', ownStation: 'Own', addOk: 'Station added', addMissing: 'Name or URL missing', addBadUrl: 'The URL must start with http:// or https://', addBtn: 'Add', addName: 'Name', addUrl: 'https://... (stream URL)' },
+            pt: { insecure: 'Esta estação não pode tocar aqui', openTab: 'Abrir numa aba', openTip: 'Abre numa aba separada, onde funciona.', ownStation: 'Própria', addOk: 'Estação adicionada', addMissing: 'Falta o nome ou a URL', addBadUrl: 'A URL deve começar por http:// ou https://', addBtn: 'Adicionar', addName: 'Nome', addUrl: 'https://... (URL do stream)' },
             ar: { insecure: 'لا يمكن تشغيل هذه المحطة هنا', openTab: 'فتح في تبويب', openTip: 'تُفتح في تبويب منفصل حيث تعمل.', ownStation: 'خاصة', addOk: 'تمت إضافة المحطة', addMissing: 'الاسم أو الرابط ناقص', addBadUrl: 'يجب أن يبدأ الرابط بـ http:// أو https://', addBtn: 'إضافة', addName: 'الاسم', addUrl: 'https://... (رابط البث)' }
         };
         // Nom curt de la capçalera, al costat del dònut.
-        const SHORT_TITLE = { es: 'Radio', ca: 'Ràdio', fr: 'Radio', it: 'Radio', de: 'Radio', zh: '广播', ja: 'ラジオ', ar: 'راديو' };
+        const SHORT_TITLE = { es: 'Radio', ca: 'Ràdio', en: 'Radio', pt: 'Rádio', fr: 'Radio', it: 'Radio', de: 'Radio', zh: '广播', ja: 'ラジオ', ar: 'راديو' };
         Object.keys(SHORT_TITLE).forEach(k => i18nExtra[k].short = SHORT_TITLE[k]);
 
         Object.keys(i18nExtra).forEach(k => Object.assign(i18n[k], i18nExtra[k]));
