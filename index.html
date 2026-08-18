@@ -52,6 +52,19 @@
         .eq-bar:nth-child(4) { animation-delay: 0.1s; }
         .eq-bar:nth-child(5) { animation-delay: 0.5s; }
 
+        /* Les emissores sense logotip també tenen el seu disc, amb la
+           inicial al mig, i gira igual que una caràtula. */
+        .disc {
+            width: 100%; height: 100%;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 50% !important;
+            background: radial-gradient(circle at 50% 50%, #52525b 0 13%, #1c1c22 14%, #0b0b0f 100%);
+            border: 2px solid #111;
+            color: rgba(255,255,255,.8);
+            box-shadow: 0 0 10px rgba(255, 214, 0, .35);
+        }
+        .disc.gira { animation: spin-slow 4s linear infinite; }
+
         .hidden-app { display: none !important; }
 
         body {
@@ -712,6 +725,7 @@
             <img src="donut.png" alt="" class="h-16 w-auto object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,.6)]">
             <div class="text-sm font-bold text-white tracking-wide">©mr_d0nuT</div>
             <div class="flex flex-col gap-1 text-xs">
+                <a href="https://github.com/mr-d0nuT/" target="_blank" rel="noopener" class="text-white/70 hover:text-white hover:underline mb-1">https://github.com/mr-d0nuT/</a>
                 <a href="mailto:mr_donut@hotmail.com" class="text-[#ffd600] hover:underline">mr_donut@hotmail.com</a>
                 <a href="mailto:donut.gub@gmail.com" class="text-[#ffd600] hover:underline">donut.gub@gmail.com</a>
             </div>
@@ -1539,9 +1553,10 @@
                 const card = document.createElement('div');
                 card.className = `station-card flex items-center p-3 rounded-xl border bg-black/40 cursor-pointer gap-3 ${borderStyle}`;
 
+                const discClass = 'disc font-bold' + (isActive && isPlaying ? ' gira' : '');
                 const logoHtml = station.favicon
-                    ? `<img src="${station.favicon}" loading="lazy" decoding="async" class="w-full h-full object-cover ${isActive && isPlaying ? 'vinyl-spin' : 'rounded-lg'}" onerror="this.outerHTML='<span class=\\'text-white/40 font-bold\\'>${station.name.charAt(0)}</span>'">`
-                    : `<span class="text-white/40 font-bold">${station.name.charAt(0)}</span>`;
+                    ? `<img src="${station.favicon}" loading="lazy" decoding="async" class="w-full h-full object-cover ${isActive && isPlaying ? 'vinyl-spin' : 'rounded-lg'}" onerror="this.outerHTML='<span class=\\'${discClass}\\'>${station.name.charAt(0)}</span>'">`
+                    : `<span class="${discClass}">${station.name.charAt(0)}</span>`;
 
                 card.innerHTML = `
                     <div class="w-10 h-10 bg-white/5 rounded-lg flex items-center justify-center shrink-0 border border-white/5 overflow-hidden">
@@ -2636,6 +2651,8 @@
                 } else {
                     initial.innerText = station.name.charAt(0);
                     initial.classList.remove('hidden');
+                    initial.classList.add('disc');
+                    initial.classList.toggle('gira', isPlaying);
                     img.classList.add('hidden');
                 }
             };
@@ -2705,6 +2722,10 @@
                 if (!img) return;
                 if (on && !img.classList.contains('hidden')) img.classList.add('vinyl-spin');
                 else img.classList.remove('vinyl-spin');
+            });
+            ['player-initial', 'gadget-initial'].forEach(id => {
+                const sp = byId(id);
+                if (sp) sp.classList.toggle('gira', on && sp.classList.contains('disc'));
             });
         }
 
