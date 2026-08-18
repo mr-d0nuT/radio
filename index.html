@@ -1059,8 +1059,10 @@
 
             document.title = x.title;
             if (floatWin && !floatWin.closed && !currentStation) floatWin.document.title = x.title;
-            byId('main-title-text').innerText = x.short;
-            byId('search-input').placeholder = x.search;
+            // El títol de la capçalera ara són els dos botons del commutador.
+            const etiq = byId('mode-radio-text');
+            if (etiq) etiq.textContent = x.short;
+            byId('search-input').placeholder = mode === 'podcasts' ? x.searchPod : x.search;
             byId('favorites-empty').innerText = x.noFav;
             byId('lbl-detached-title').innerText = x.floatTitle;
             byId('lbl-detached-desc').innerHTML = x.floatDesc;
