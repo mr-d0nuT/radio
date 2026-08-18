@@ -407,7 +407,7 @@
                 </button>
 
                 <div class="flex items-center gap-2 min-w-0" id="main-title">
-                    <img src="donut.png" alt="" id="logo-donut" class="h-10 w-auto object-contain shrink-0 drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
+                    <img src="donut.png" alt="" id="logo-donut" onclick="toggleAbout(true)" title="mr_d0nuT" class="h-10 w-auto object-contain shrink-0 cursor-pointer drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)] transition-transform hover:scale-105 active:scale-95">
                     <div class="flex flex-col leading-none gap-[5px] select-none">
                         <button onclick="setMode('radio')" id="mode-radio" class="mode-btn">
                             <svg class="mode-ico" viewBox="0 0 24 24" fill="none">
@@ -661,6 +661,20 @@
 
         <div id="gadget-favs" class="flex items-center justify-center gap-1.5 shrink-0"></div>
         <canvas id="viz-gadget" class="viz"></canvas>
+    </div>
+
+    <div id="about" class="hidden-app fixed inset-0 z-[60] flex items-center justify-center p-6 bg-black/70 backdrop-blur-sm">
+        <div id="about-card" class="w-[300px] max-w-full rounded-2xl border border-white/10 bg-[#12121a] p-6 shadow-2xl flex flex-col items-center gap-3 text-center relative">
+            <button onclick="toggleAbout(false)" class="absolute top-2 right-2 p-2 rounded-lg text-white/30 hover:text-white hover:bg-white/10 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+            <img src="donut.png" alt="" class="h-16 w-auto object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,.6)]">
+            <div class="text-sm font-bold text-white tracking-wide">© mr_d0nuT</div>
+            <div class="flex flex-col gap-1 text-xs">
+                <a href="mailto:mr_donut@hotmail.com" class="text-[#ffd600] hover:underline">mr_donut@hotmail.com</a>
+                <a href="mailto:donut.gub@gmail.com" class="text-[#ffd600] hover:underline">donut.gub@gmail.com</a>
+            </div>
+        </div>
     </div>
 
     <div id="toast"></div>
@@ -969,6 +983,14 @@
             localStorage.setItem('radioFavPods', JSON.stringify(favPods));
         }
 
+        function toggleAbout(obrir) {
+            const a = byId('about');
+            if (a) a.classList.toggle('hidden-app', !obrir);
+        }
+        document.getElementById('about').addEventListener('click', e => {
+            if (!e.target.closest('#about-card')) toggleAbout(false);
+        });
+
         function toggleFavPanel(tancar) {
             const p = byId('fav-panel'), c = byId('fav-caret');
             if (!p) return;
@@ -1172,7 +1194,10 @@
                 case 'ArrowDown':  e.preventDefault(); setVolume(audio.volume - 0.05); break;
                 case 'm': case 'M': toggleMute(); break;
                 case 'f': case 'F': { const x = itemPreferible(); if (x) toggleFavorite(x); break; }
-                case 'Escape':     if (floatWin) exitGadgetMode(); break;
+                case 'Escape':
+                    if (byId('about') && !byId('about').classList.contains('hidden-app')) { toggleAbout(false); break; }
+                    if (floatWin) exitGadgetMode();
+                    break;
             }
         }
         document.addEventListener('keydown', onKeyShortcut);
