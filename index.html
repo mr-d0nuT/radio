@@ -306,7 +306,7 @@
                pantalla i només hi cabien 6 emissores. */
             #search-row { padding: 8px 12px; gap: 8px; }
             #search-row input, #search-row select { padding-top: 7px; padding-bottom: 7px; font-size: 13px; }
-            #search-row select { width: 9rem; }
+            #search-row select { width: 7.25rem; }
 
             #fav-sidebar { padding: 6px 10px; }
             #lbl-favorites { margin-bottom: 4px; }
@@ -354,9 +354,6 @@
                 <button id="btn-gadget-mode" onclick="enterGadgetMode()" class="text-white/30 hover:text-white transition-colors p-1 bg-white/5 hover:bg-white/10 rounded-md" title="Minimitzar a gadget flotant (sobre l'escriptori)">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                 </button>
-                <button id="btn-add-station" onclick="toggleAddForm()" class="text-white/30 hover:text-white transition-colors p-1 bg-white/5 hover:bg-white/10 rounded-md" title="Afegir una emissora que no és a la llista">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                </button>
 
                 <div class="flex items-center gap-2 min-w-0 ml-1" id="main-title">
                     <img src="donut.png" alt="" id="logo-donut" class="h-10 w-auto object-contain shrink-0 drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
@@ -391,7 +388,7 @@
                 <svg class="w-4 h-4 absolute left-3 top-3 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                 <input type="text" id="search-input" placeholder="Cercar emissora (ex: Altafulla)..." class="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-10 pr-4 text-sm text-white placeholder-white/40 focus:outline-none focus:border-[#ffd600]/50 transition-colors">
             </div>
-            <select id="country-select" class="bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-[#ffd600]/50 w-40 cursor-pointer appearance-none">
+            <select id="country-select" class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#ffd600]/50 w-32 shrink-0 cursor-pointer appearance-none">
                 <option value="Catalunya" class="bg-gray-900">Catalunya</option>
                 <option value="ES" class="bg-gray-900">España</option>
                 <option value="FR" class="bg-gray-900">Francia</option>
@@ -408,6 +405,9 @@
                 <option value="CO" class="bg-gray-900">Colombia</option>
                 <option value="CL" class="bg-gray-900">Chile</option>
             </select>
+            <button id="btn-add-station" onclick="toggleAddForm()" class="shrink-0 px-3 rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center" title="Afegir una emissora que no és a la llista">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+            </button>
         </div>
 
         <!-- AFEGIR EMISSORA A MÀ (per a les que no són a Radio Browser) -->
