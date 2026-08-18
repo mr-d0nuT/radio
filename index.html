@@ -188,7 +188,7 @@
         .mode-off:hover { color: rgba(255,255,255,.62); }
         .mode-on {
             color: #ffd600;
-            animation: mode-aura 2.1s ease-in-out infinite;
+            animation: mode-aura 1.5s ease-in-out infinite;
         }
         @keyframes mode-aura {
             0%, 100% { text-shadow: 0 0 5px rgba(255,214,0,.45), 0 0 13px rgba(255,214,0,.16); }
@@ -196,9 +196,17 @@
         }
         .mode-ico { width: 23px; height: 23px; flex-shrink: 0; transition: all .25s ease; }
         .mode-off .mode-ico { opacity: .45; filter: saturate(.35); }
-        .mode-on .mode-ico { opacity: 1; filter: drop-shadow(0 0 5px rgba(255,214,0,.55)); }
+        .mode-on .mode-ico {
+            opacity: 1;
+            animation: ico-batec 1.5s ease-in-out infinite;
+        }
+        @keyframes ico-batec {
+            0%, 100% { transform: scale(1);    filter: drop-shadow(0 0 4px rgba(255,214,0,.45)); }
+            50%      { transform: scale(1.14); filter: drop-shadow(0 0 10px rgba(255,214,0,.85)); }
+        }
         @media (prefers-reduced-motion: reduce) {
             .mode-on { animation: none; text-shadow: 0 0 9px rgba(255,214,0,.6); }
+            .mode-on .mode-ico { animation: none; filter: drop-shadow(0 0 6px rgba(255,214,0,.6)); }
         }
 
         /* ============================================================
@@ -413,16 +421,19 @@
                         <button onclick="setMode('podcasts')" id="mode-podcasts" class="mode-btn">
                             <svg class="mode-ico" viewBox="0 0 24 24" fill="none">
                                 <defs>
-                                    <linearGradient id="pc-cup" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0" stop-color="#f0abfc"/><stop offset="1" stop-color="#a21caf"/>
+                                    <linearGradient id="mc-body" x1="0" y1="0" x2="1" y2="1">
+                                        <stop offset="0" stop-color="#f9a8d4"/><stop offset=".5" stop-color="#c026d3"/><stop offset="1" stop-color="#6d28d9"/>
+                                    </linearGradient>
+                                    <linearGradient id="mc-peu" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0" stop-color="#e2e8f0"/><stop offset="1" stop-color="#64748b"/>
                                     </linearGradient>
                                 </defs>
-                                <path d="M3.6 15.2v-3.1a8.4 8.4 0 0 1 16.8 0v3.1" stroke="#38bdf8" stroke-width="2.1" stroke-linecap="round"/>
-                                <rect x="1.4" y="12.4" width="5.4" height="8.2" rx="2.7" fill="url(#pc-cup)"/>
-                                <rect x="17.2" y="12.4" width="5.4" height="8.2" rx="2.7" fill="url(#pc-cup)"/>
-                                <rect x="3" y="14.4" width="2.2" height="4.2" rx="1.1" fill="#fde68a"/>
-                                <rect x="18.8" y="14.4" width="2.2" height="4.2" rx="1.1" fill="#fde68a"/>
-                                <path d="M9.4 15.6v-2.4M12 17.4V11.4M14.6 15.6v-2.4" stroke="#facc15" stroke-width="1.9" stroke-linecap="round"/>
+                                <rect x="8.4" y="1.8" width="7.2" height="12.4" rx="3.6" fill="url(#mc-body)"/>
+                                <path d="M9.9 4.6h4.2M9.9 6.9h4.2M9.9 9.2h4.2" stroke="rgba(255,255,255,.7)" stroke-width="1.05" stroke-linecap="round"/>
+                                <path d="M5.6 11.4a6.4 6.4 0 0 0 12.8 0" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
+                                <path d="M12 17.8v3.4" stroke="url(#mc-peu)" stroke-width="2.1" stroke-linecap="round"/>
+                                <path d="M8.2 21.6h7.6" stroke="url(#mc-peu)" stroke-width="2.1" stroke-linecap="round"/>
+                                <circle cx="12" cy="4.4" r="1" fill="#fde68a"/>
                             </svg>
                             <span id="mode-podcasts-text">Podcasts</span>
                         </button>
@@ -1528,7 +1539,7 @@
             }
             localStorage.setItem('radioFavs', JSON.stringify(favorites));
             renderFavorites();
-            if (allStations.length > 0) renderStations(allStations);
+            if (veientEmissores() && allStations.length > 0) renderStations(allStations);
             updateFavIcons();
         }
 
@@ -1916,6 +1927,15 @@
                             JP: 'jp', MA: 'ma', GB: 'gb', US: 'us', PT: 'pt', BR: 'br',
                             AR: 'ar', CO: 'co', CL: 'cl' };
 
+        // Apple no té botiga per a Catalunya, només per països. Per tenir-hi
+        // podcasts en català buidem el catàleg espanyol buscant per productora
+        // i ho ajuntem tot: en surten un parell de centenars.
+        const CAT_TERMES = ['Catalunya Ràdio', 'RAC1', 'La Sotana', 'SER Catalunya', 'Ràdio 4 RNE',
+                            'El Món a RAC1', 'podcast en català', 'VilaWeb', 'El Nacional.cat', 'Ràdio Barcelona'];
+        // Sense filtre, cercar "3Cat" retorna podcasts de gats en anglès. Només
+        // ens quedem amb el que ve de cases catalanes.
+        const CAT_PRODUCTORA = /catalunya r|rac ?1|rac105|3cat|ccma|la sotana|ser catalunya|r[àa]dio 4|vilaweb|nació digital|el nacional|catalan|català|r[àa]dio barcelona|betevé|el m[óo]n a rac/i;
+
         let mode = localStorage.getItem('radioMode') === 'podcasts' ? 'podcasts' : 'radio';
         let allPodcasts = [];
         let currentPodcast = null;
@@ -1945,7 +1965,7 @@
         /** Rànquing del país + feeds, desat al dispositiu com les emissores. */
         async function fetchPodcasts(region) {
             const cc = ITUNES_CC[region] || 'es';
-            const clau = 'pod-' + cc;
+            const clau = 'pod-' + (region === 'Catalunya' ? 'cat' : cc);
             const spinner = byId('loading-spinner'), list = byId('stations-list');
 
             const desat = await cacheGet(clau);
@@ -1959,6 +1979,36 @@
             spinner.style.display = 'flex';
             list.classList.add('hidden');
             showProgress(t().downloading, null, null);
+
+            if (region === 'Catalunya') {
+                try {
+                    const parts = await Promise.all(CAT_TERMES.map((terme, i) =>
+                        fetch('https://itunes.apple.com/search?media=podcast&country=es&limit=50&term=' + encodeURIComponent(terme))
+                            .then(r => r.json())
+                            .then(d => { showProgress(t().downloading, i + 1, CAT_TERMES.length); return d.results || []; })
+                            .catch(() => [])));
+
+                    const vistos = {};
+                    parts.flat().forEach(x => {
+                        if (!x.feedUrl || vistos[x.collectionId]) return;
+                        if (!CAT_PRODUCTORA.test((x.artistName || '') + ' ' + (x.collectionName || ''))) return;
+                        vistos[x.collectionId] = {
+                            id: String(x.collectionId), name: x.collectionName, artist: x.artistName,
+                            art: x.artworkUrl600 || x.artworkUrl100 || '', feed: x.feedUrl,
+                            episodes: x.trackCount || 0
+                        };
+                    });
+                    const items = Object.values(vistos);
+                    await cacheSet(clau, { items, savedAt: Date.now() });
+                    paintPodcasts(items);
+                } catch (e) {
+                    console.error('Error carregant podcasts en català:', e);
+                    list.innerHTML = `<div class="col-span-full text-center text-white/50 py-10">${t().connError}</div>`;
+                }
+                spinner.style.display = 'none';
+                list.classList.remove('hidden');
+                return;
+            }
 
             try {
                 const chart = await (await fetch('https://itunes.apple.com/' + cc + '/rss/toppodcasts/limit=100/json')).json();
@@ -1992,6 +2042,10 @@
             spinner.style.display = 'none';
             list.classList.remove('hidden');
         }
+
+        /** Repintar el llistat d'emissores només quan és el que es veu:
+            si no, esborra la llista d'episodis que hi ha a sota. */
+        const veientEmissores = () => mode === 'radio' && !currentPodcast;
 
         function paintPodcasts(items) {
             // Ordre alfabètic, com les emissores. El rànquing d'Apple ve per
@@ -2352,7 +2406,7 @@
             candMode = 0;
             loadCandidate();
 
-            if (allStations.length > 0) renderStations(allStations);
+            if (veientEmissores() && allStations.length > 0) renderStations(allStations);
             renderFavorites();
 
             if ('mediaSession' in navigator) {
@@ -2423,7 +2477,7 @@
             setStatus('live');
             setLiveIndicators(true);
             if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
-            if (allStations.length > 0) renderStations(allStations);
+            if (veientEmissores() && allStations.length > 0) renderStations(allStations);
         });
         el.addEventListener('pause', () => {
             clearCandTimer();
@@ -2432,7 +2486,7 @@
             setLiveIndicators(false);
             setStatus('idle');
             if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
-            if (allStations.length > 0) renderStations(allStations);
+            if (veientEmissores() && allStations.length > 0) renderStations(allStations);
         });
         el.addEventListener('error', () => {
             isPlaying = false;
