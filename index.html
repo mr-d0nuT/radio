@@ -175,6 +175,47 @@
         }
         #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+        /* Botó de reproducció amb relleu: llum a dalt a l'esquerra, ombra
+           interior a baix i ombra projectada. Verd per engegar, taronja
+           mentre sona. */
+        .btn-so {
+            border: none;
+            transition: transform .12s ease, filter .2s ease;
+        }
+        .btn-so:active { transform: scale(.93); }
+        .btn-so-play {
+            background: radial-gradient(circle at 34% 26%, #86efac 0%, #22c55e 48%, #15803d 100%);
+            box-shadow: inset 0 2px 5px rgba(255,255,255,.6), inset 0 -4px 7px rgba(0,0,0,.38),
+                        0 5px 12px rgba(0,0,0,.45), 0 0 18px rgba(34,197,94,.45);
+        }
+        .btn-so-play:hover { filter: brightness(1.12); }
+        .btn-so-pause {
+            background: radial-gradient(circle at 34% 26%, #fed7aa 0%, #f97316 48%, #c2410c 100%);
+            box-shadow: inset 0 2px 5px rgba(255,255,255,.55), inset 0 -4px 7px rgba(0,0,0,.4),
+                        0 5px 12px rgba(0,0,0,.45), 0 0 18px rgba(249,115,22,.5);
+        }
+        .btn-so-pause:hover { filter: brightness(1.1); }
+
+        /* La targeta del que sona: marc fi que va girant de color, així
+           contrasta sempre encara que el fons es tenyeixi, i respira. */
+        @property --marc { syntax: '<number>'; inherits: false; initial-value: 0; }
+        .sonant {
+            border-color: hsl(var(--marc), 100%, 62%) !important;
+            box-shadow: 0 0 0 1px hsl(var(--marc), 100%, 62%),
+                        0 0 14px hsla(var(--marc), 100%, 58%, .45);
+            animation: marc-gira 5s linear infinite, sonant-respira 1.9s ease-in-out infinite;
+        }
+        @keyframes marc-gira { from { --marc: 0; } to { --marc: 360; } }
+        @keyframes sonant-respira {
+            0%, 100% { transform: scale(1); }
+            50%      { transform: scale(1.018); }
+        }
+        /* Si el navegador no admet @property, almenys que es vegi vermell */
+        @supports not (background: paint(x)) { .sonant { border-color: #ff2d55 !important; } }
+        @media (prefers-reduced-motion: reduce) {
+            .sonant { animation: marc-gira 5s linear infinite; }
+        }
+
         /* Els cors marcats fan el doble cop d'un batec de veritat */
         .cor-batec { animation: cor-batec 1.8s ease-in-out infinite; transform-origin: center; }
         @keyframes cor-batec {
@@ -577,7 +618,7 @@
                 <div class="flex items-center gap-6">
                     <button id="btn-fav-main" class="text-white/40 hover:text-white transition-colors" title="Preferida"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg></button>
 
-                    <button id="btn-play" class="w-12 h-12 bg-[#22c55e] text-black rounded-full flex items-center justify-center hover:bg-[#16a34a] hover:scale-105 transition-all shadow-[0_0_15px_rgba(34,197,94,0.45)]">
+                    <button id="btn-play" class="btn-so btn-so-play w-12 h-12 text-black rounded-full flex items-center justify-center">
                         <svg class="w-5 h-5 ml-1" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4l12 6-12 6z"></path></svg>
                     </button>
 
@@ -647,7 +688,7 @@
         <div id="gadget-controls" class="flex items-center justify-between pt-3 border-t border-white/10 shrink-0">
             <button id="btn-gadget-prev" class="text-white/60 hover:text-white p-2 transition-colors" title="Anterior (←)"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M8.445 14.832A1 1 0 0010 14v-2.798l5.445 3.63A1 1 0 0017 14V6a1 1 0 00-1.555-.832L10 8.798V6a1 1 0 00-1.555-.832l-6 4a1 1 0 000 1.664l6 4z"></path></svg></button>
 
-            <button id="btn-gadget-play" class="w-14 h-14 bg-[#22c55e] text-black rounded-full flex items-center justify-center hover:bg-[#16a34a] transition-all hover:scale-105 shadow-[0_0_20px_rgba(34,197,94,0.35)]" title="Reproduir / pausar (Espai)">
+            <button id="btn-gadget-play" class="btn-so btn-so-play w-14 h-14 text-black rounded-full flex items-center justify-center" title="Reproduir / pausar (Espai)">
                 <svg class="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4l12 6-12 6z"></path></svg>
             </button>
 
@@ -1492,7 +1533,7 @@
                 const isFav = favorites.some(f => f.stationuuid === station.stationuuid);
                 const isActive = currentStation && currentStation.stationuuid === station.stationuuid;
 
-                const borderStyle = isActive ? 'border-[#ffd600] shadow-[0_0_15px_rgba(255,214,0,0.2)]' : 'border-white/5 hover:border-white/20 hover:bg-white/5';
+                const borderStyle = isActive ? 'sonant' : 'border-white/5 hover:border-white/20 hover:bg-white/5';
                 const heartStyle = isFav ? 'text-[#ff2d55] fill-current' : 'text-white/20 hover:text-white/60';
 
                 const card = document.createElement('div');
@@ -2327,13 +2368,15 @@
             const list = byId('stations-list');
             list.innerHTML = '';
             eps.forEach(ep => {
+                const sonantAra = currentStation && currentStation.url_resolved === ep.url;
                 const quan = ep.date ? new Date(ep.date) : null;
                 const data = quan && !isNaN(quan) ? quan.toLocaleDateString(currentLang, { day: 'numeric', month: 'short', year: 'numeric' }) : '';
                 const card = document.createElement('div');
-                card.className = 'station-card flex items-center p-3 rounded-xl border border-white/5 bg-black/40 cursor-pointer gap-3 hover:border-white/20 hover:bg-white/5';
+                card.className = 'station-card flex items-center p-3 rounded-xl border bg-black/40 cursor-pointer gap-3 '
+                    + (sonantAra ? 'sonant' : 'border-white/5 hover:border-white/20 hover:bg-white/5');
                 card.innerHTML = `
-                    <div class="w-9 h-9 rounded-lg bg-[#ffd600]/10 border border-[#ffd600]/25 flex items-center justify-center shrink-0">
-                        <svg class="w-4 h-4 text-[#ffd600] ml-[2px]" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4l12 6-12 6z"/></svg>
+                    <div class="w-9 h-9 rounded-lg bg-[#22c55e]/10 border border-[#22c55e]/30 flex items-center justify-center shrink-0">
+                        <svg class="w-4 h-4 text-[#22c55e] ml-[2px]" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4l12 6-12 6z"/></svg>
                     </div>
                     <div class="flex-1 overflow-hidden pointer-events-none">
                         <div class="text-sm font-semibold text-white truncate">${ep.title}</div>
@@ -2669,6 +2712,11 @@
             const b1 = byId('btn-play'), b2 = byId('btn-gadget-play');
             if (b1) b1.innerHTML = playing ? ICON.pause('w-5 h-5') : ICON.play('w-5 h-5');
             if (b2) b2.innerHTML = playing ? ICON.pause('w-6 h-6') : ICON.play('w-6 h-6');
+            [b1, b2].forEach(b => {
+                if (!b) return;
+                b.classList.toggle('btn-so-pause', playing);
+                b.classList.toggle('btn-so-play', !playing);
+            });
         }
 
         function attachAudioListeners(el) {
