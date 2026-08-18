@@ -669,7 +669,7 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
             <img src="donut.png" alt="" class="h-16 w-auto object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,.6)]">
-            <div class="text-sm font-bold text-white tracking-wide">© mr_d0nuT</div>
+            <div class="text-sm font-bold text-white tracking-wide">©mr_d0nuT</div>
             <div class="flex flex-col gap-1 text-xs">
                 <a href="mailto:mr_donut@hotmail.com" class="text-[#ffd600] hover:underline">mr_donut@hotmail.com</a>
                 <a href="mailto:donut.gub@gmail.com" class="text-[#ffd600] hover:underline">donut.gub@gmail.com</a>
@@ -2232,6 +2232,39 @@
         // ---------- episodis ----------
         const ITUNES_NS = 'http://www.itunes.com/dtds/podcast-1.0.dtd';
 
+        /** Llegeix un canal RSS i en treu els episodis. */
+        async function llegirCanal(url) {
+            const xml = await (await fetch(url)).text();
+            const doc = new DOMParser().parseFromString(xml, 'application/xml');
+            if (doc.querySelector('parsererror')) throw new Error('XML il·legible');
+            return [...doc.querySelectorAll('item')].map(it => {
+                const enc = it.querySelector('enclosure');
+                const dur = it.getElementsByTagNameNS(ITUNES_NS, 'duration')[0];
+                return {
+                    title: (it.querySelector('title') || {}).textContent || '',
+                    date: (it.querySelector('pubDate') || {}).textContent || '',
+                    dur: dur ? dur.textContent.trim() : '',
+                    url: enc ? enc.getAttribute('url') : ''
+                };
+            }).filter(e => e.url);
+        }
+
+        /**
+         * El mateix podcast sol tenir més d'un canal (Acast, Anchor, la web de
+         * la casa...) i no tots deixen que el navegador els llegeixi. Si el que
+         * ens dona Apple falla, demanem els altres pel nom del programa.
+         */
+        async function canalsAlternatius(pod) {
+            try {
+                const d = await (await fetch('https://itunes.apple.com/search?media=podcast&limit=10&term='
+                          + encodeURIComponent(pod.name))).json();
+                return (d.results || [])
+                    .filter(x => x.feedUrl && x.feedUrl !== pod.feed
+                                 && clauNom(x.collectionName) === clauNom(pod.name))
+                    .map(x => x.feedUrl);
+            } catch (e) { return []; }
+        }
+
         async function openEpisodes(pod) {
             currentPodcast = pod;
             const spinner = byId('loading-spinner'), list = byId('stations-list');
@@ -2239,26 +2272,28 @@
             list.classList.add('hidden');
             showProgress(t().downloading, null, null);
 
-            try {
-                const xml = await (await fetch(pod.feed)).text();
-                const doc = new DOMParser().parseFromString(xml, 'application/xml');
-                const eps = [...doc.querySelectorAll('item')].map(it => {
-                    const enc = it.querySelector('enclosure');
-                    const dur = it.getElementsByTagNameNS(ITUNES_NS, 'duration')[0];
-                    return {
-                        title: (it.querySelector('title') || {}).textContent || '',
-                        date: (it.querySelector('pubDate') || {}).textContent || '',
-                        dur: dur ? dur.textContent.trim() : '',
-                        url: enc ? enc.getAttribute('url') : ''
-                    };
-                }).filter(e => e.url);
+            const provats = [];
+            let eps = null;
+            for (const url of [pod.feed]) {
+                try { eps = await llegirCanal(url); provats.push(url); break; }
+                catch (e) { provats.push(url); }
+            }
+            if (!eps || !eps.length) {
+                for (const url of await canalsAlternatius(pod)) {
+                    if (provats.indexOf(url) > -1) continue;
+                    try {
+                        const alt = await llegirCanal(url);
+                        if (alt.length) { eps = alt; pod.feed = url; break; }
+                    } catch (e) {}
+                }
+            }
+
+            if (eps && eps.length) {
                 paintEpisodes(pod, eps);
-            } catch (e) {
-                console.error('Feed il·legible:', e);
+            } else {
+                console.error('Cap canal llegible per a', pod.name);
+                paintEpisodes(pod, []);
                 list.innerHTML = `<div class="col-span-full text-center text-white/50 py-10">${t().feedError}</div>`;
-                list.classList.remove('hidden');
-                byId('episodes-head').classList.remove('hidden-app');
-                byId('episodes-head').style.display = 'flex';
             }
             spinner.style.display = 'none';
             list.classList.remove('hidden');
