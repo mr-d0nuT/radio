@@ -175,6 +175,17 @@
         }
         #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+        /* Els cors marcats fan el doble cop d'un batec de veritat */
+        .cor-batec { animation: cor-batec 1.8s ease-in-out infinite; transform-origin: center; }
+        @keyframes cor-batec {
+            0%, 100% { transform: scale(1); }
+            12%      { transform: scale(1.25); }
+            26%      { transform: scale(1); }
+            38%      { transform: scale(1.15); }
+            52%      { transform: scale(1); }
+        }
+        @media (prefers-reduced-motion: reduce) { .cor-batec { animation: none; } }
+
         /* Commutador Ràdio / Podcasts: l'actiu batega amb una aura */
         .mode-btn {
             display: flex; align-items: center; gap: 6px;
@@ -660,7 +671,7 @@
             es: { title: 'Emisoras de radio', search: 'Buscar emisora (ex: Altafulla)...', fav: 'FAVORITAS', noFav: 'Añade hasta 10 favoritas.', noStation: 'Selecciona una emisora', subStation: 'Miles de opciones', connecting: 'Conectando…', offline: 'Emisora no disponible', live: 'En directo', noFavsShort: 'Sin favoritas', floatTitle: 'Gadget flotante activo', floatDesc: 'El reproductor está en una ventana pequeña sobre el escritorio.<br>No cierres esta pestaña: el audio sale de aquí.', backBtn: 'Volver a la ventana grande', popupBlocked: 'El navegador ha bloqueado la ventana flotante. Permite las ventanas emergentes para este sitio.', pipHint: 'Consejo: arrastra la esquina de la ventanita para hacerla más pequeña.', noStations: 'No se encontraron emisoras.', connError: 'Error de conexión.', favLimit: 'Has llegado al límite de 10 favoritas.', copied: 'Enlace del stream copiado' },
             ca: { title: 'Emissores de ràdio', search: 'Cercar emissora (ex: Altafulla)...', fav: 'PREFERIDES', noFav: 'Afegeix fins a 10 preferides.', noStation: 'Selecciona una emissora', subStation: "Milers d'opcions", connecting: 'Connectant…', offline: 'Emissora no disponible', live: 'En directe', noFavsShort: 'Sense preferides', floatTitle: 'Gadget flotant actiu', floatDesc: "El reproductor està en una finestra petita per damunt de l'escriptori.<br>No tanquis aquesta pestanya: l'àudio surt d'aquí.", backBtn: 'Tornar a la finestra gran', popupBlocked: 'El navegador ha bloquejat la finestra flotant. Permet les finestres emergents per a aquest lloc.', pipHint: 'Consell: arrossega la cantonada de la finestreta per fer-la més petita.', noStations: 'No s\'han trobat emissores.', connError: 'Error de connexió.', favLimit: 'Has arribat al límit de 10 preferides.', copied: 'Enllaç del stream copiat' },
             fr: { title: 'Stations de radio', search: 'Rechercher une station...', fav: 'FAVORIS', noFav: 'Ajoutez jusqu\'à 5 favoris.', noStation: 'Sélectionnez une station', subStation: 'Des milliers d\'options', connecting: 'Connexion…', offline: 'Station indisponible', live: 'En direct', noFavsShort: 'Aucun favori', floatTitle: 'Gadget flottant actif', floatDesc: 'Le lecteur est dans une petite fenêtre au-dessus du bureau.<br>Ne fermez pas cet onglet : le son vient d\'ici.', backBtn: 'Revenir à la grande fenêtre', popupBlocked: 'Le navigateur a bloqué la fenêtre flottante. Autorisez les pop-ups.', pipHint: 'Astuce : redimensionnez la fenêtre par son coin.', noStations: 'Aucune station trouvée.', connError: 'Erreur de connexion.', favLimit: 'Limite de 10 favoris atteinte.', copied: 'Lien du flux copié' },
-            it: { title: 'Stazioni radio', search: 'Cerca stazione...', fav: 'PREFERITI', noFav: 'Aggiungi fino a 5 preferiti.', noStation: 'Seleziona una stazione', subStation: 'Migliaia di opzioni', connecting: 'Connessione…', offline: 'Stazione non disponibile', live: 'In diretta', noFavsShort: 'Nessun preferito', floatTitle: 'Gadget flottante attivo', floatDesc: 'Il player è in una finestrella sopra il desktop.<br>Non chiudere questa scheda: l\'audio esce da qui.', backBtn: 'Torna alla finestra grande', popupBlocked: 'Il browser ha bloccato la finestra. Consenti i pop-up.', pipHint: 'Suggerimento: ridimensiona la finestrella dall\'angolo.', noStations: 'Nessuna stazione trovata.', connError: 'Errore di connessione.', favLimit: 'Limite di 10 preferiti raggiunto.', copied: 'Link dello stream copiato' },
+            it: { title: 'Stazioni radio', search: 'Cerca stazione...', fav: 'PREFERITE', noFav: 'Aggiungi fino a 5 preferiti.', noStation: 'Seleziona una stazione', subStation: 'Migliaia di opzioni', connecting: 'Connessione…', offline: 'Stazione non disponibile', live: 'In diretta', noFavsShort: 'Nessun preferito', floatTitle: 'Gadget flottante attivo', floatDesc: 'Il player è in una finestrella sopra il desktop.<br>Non chiudere questa scheda: l\'audio esce da qui.', backBtn: 'Torna alla finestra grande', popupBlocked: 'Il browser ha bloccato la finestra. Consenti i pop-up.', pipHint: 'Suggerimento: ridimensiona la finestrella dall\'angolo.', noStations: 'Nessuna stazione trovata.', connError: 'Errore di connessione.', favLimit: 'Limite di 10 preferiti raggiunto.', copied: 'Link dello stream copiato' },
             de: { title: 'Radiosender', search: 'Sender suchen...', fav: 'FAVORITEN', noFav: 'Fügen Sie bis zu 5 Favoriten hinzu.', noStation: 'Wählen Sie einen Sender', subStation: 'Tausende von Optionen', connecting: 'Verbinden…', offline: 'Sender nicht verfügbar', live: 'Live', noFavsShort: 'Keine Favoriten', floatTitle: 'Schwebendes Gadget aktiv', floatDesc: 'Der Player läuft in einem kleinen Fenster über dem Desktop.<br>Diesen Tab nicht schließen: der Ton kommt von hier.', backBtn: 'Zurück zum großen Fenster', popupBlocked: 'Der Browser hat das Fenster blockiert. Pop-ups erlauben.', pipHint: 'Tipp: Fenstergröße an der Ecke ziehen.', noStations: 'Keine Sender gefunden.', connError: 'Verbindungsfehler.', favLimit: 'Grenze von 10 Favoriten erreicht.', copied: 'Stream-Link kopiert' },
             zh: { title: '广播电台', search: '搜索电台...', fav: '收藏', noFav: '最多添加5个收藏夹', noStation: '选择一个电台', subStation: '数以千计的选择', connecting: '连接中…', offline: '电台不可用', live: '直播中', noFavsShort: '无收藏', floatTitle: '悬浮小工具已启用', floatDesc: '播放器在桌面上的小窗口中。<br>请勿关闭此标签页：声音来自这里。', backBtn: '返回大窗口', popupBlocked: '浏览器阻止了浮动窗口，请允许弹出窗口。', pipHint: '提示：拖动窗口角落可调整大小。', noStations: '未找到电台。', connError: '连接错误。', favLimit: '收藏已达10个上限。', copied: '已复制音频流链接' },
             ja: { title: 'ラジオ局', search: '局を検索...', fav: 'お気に入り', noFav: 'お気に入りを最大5つ追加', noStation: '局を選択', subStation: '何千ものオプション', connecting: '接続中…', offline: '利用できません', live: '生放送', noFavsShort: 'お気に入りなし', floatTitle: 'フローティング表示中', floatDesc: 'プレーヤーはデスクトップ上の小窓で動作中です。<br>このタブは閉じないでください。音声はここから出ます。', backBtn: '大きな窓に戻る', popupBlocked: 'ブラウザが小窓をブロックしました。ポップアップを許可してください。', pipHint: 'ヒント：角をドラッグしてサイズ変更できます。', noStations: '局が見つかりません。', connError: '接続エラー。', favLimit: 'お気に入りは10件までです。', copied: 'ストリームのリンクをコピーしました' },
@@ -700,15 +711,15 @@
         }
 
         const i18nExtra = {
-            es: { insecure: 'Esta emisora no puede sonar aquí', openTab: 'Abrir en pestaña', openTip: 'Se abre en una pestaña aparte, donde sí suena.', ownStation: 'Propia', addOk: 'Emisora añadida', addMissing: 'Falta el nombre o la URL', addBadUrl: 'La URL debe empezar por http:// o https://', addBtn: 'Añadir', addName: 'Nombre', addUrl: 'https://... (URL del stream)' },
-            ca: { insecure: 'Aquesta emissora no pot sonar aquí', openTab: 'Obrir en pestanya', openTip: 'S\'obre en una pestanya a part, on sí que sona.', ownStation: 'Pròpia', addOk: 'Emissora afegida', addMissing: 'Falta el nom o la URL', addBadUrl: 'La URL ha de començar per http:// o https://', addBtn: 'Afegir', addName: 'Nom', addUrl: 'https://... (URL del stream)' },
+            es: { favM: 'FAVORITOS', insecure: 'Esta emisora no puede sonar aquí', openTab: 'Abrir en pestaña', openTip: 'Se abre en una pestaña aparte, donde sí suena.', ownStation: 'Propia', addOk: 'Emisora añadida', addMissing: 'Falta el nombre o la URL', addBadUrl: 'La URL debe empezar por http:// o https://', addBtn: 'Añadir', addName: 'Nombre', addUrl: 'https://... (URL del stream)' },
+            ca: { favM: 'PREFERITS', insecure: 'Aquesta emissora no pot sonar aquí', openTab: 'Obrir en pestanya', openTip: 'S\'obre en una pestanya a part, on sí que sona.', ownStation: 'Pròpia', addOk: 'Emissora afegida', addMissing: 'Falta el nom o la URL', addBadUrl: 'La URL ha de començar per http:// o https://', addBtn: 'Afegir', addName: 'Nom', addUrl: 'https://... (URL del stream)' },
             fr: { insecure: 'Cette station ne peut pas jouer ici', openTab: 'Ouvrir dans un onglet', openTip: 'S\'ouvre dans un onglet séparé, où elle fonctionne.', ownStation: 'Perso', addOk: 'Station ajoutée', addMissing: 'Nom ou URL manquant', addBadUrl: 'L\'URL doit commencer par http:// ou https://', addBtn: 'Ajouter', addName: 'Nom', addUrl: 'https://... (URL du flux)' },
-            it: { insecure: 'Questa stazione non può suonare qui', openTab: 'Apri in una scheda', openTip: 'Si apre in una scheda separata, dove funziona.', ownStation: 'Propria', addOk: 'Stazione aggiunta', addMissing: 'Manca il nome o l\'URL', addBadUrl: 'L\'URL deve iniziare con http:// o https://', addBtn: 'Aggiungi', addName: 'Nome', addUrl: 'https://... (URL dello stream)' },
+            it: { favM: 'PREFERITI', insecure: 'Questa stazione non può suonare qui', openTab: 'Apri in una scheda', openTip: 'Si apre in una scheda separata, dove funziona.', ownStation: 'Propria', addOk: 'Stazione aggiunta', addMissing: 'Manca il nome o l\'URL', addBadUrl: 'L\'URL deve iniziare con http:// o https://', addBtn: 'Aggiungi', addName: 'Nome', addUrl: 'https://... (URL dello stream)' },
             de: { insecure: 'Dieser Sender kann hier nicht laufen', openTab: 'In neuem Tab öffnen', openTip: 'Öffnet sich in einem eigenen Tab, dort läuft er.', ownStation: 'Eigen', addOk: 'Sender hinzugefügt', addMissing: 'Name oder URL fehlt', addBadUrl: 'Die URL muss mit http:// oder https:// beginnen', addBtn: 'Hinzufügen', addName: 'Name', addUrl: 'https://... (Stream-URL)' },
             zh: { insecure: '该电台无法在此播放', openTab: '在新标签页打开', openTip: '将在单独的标签页中打开并正常播放。', ownStation: '自定义', addOk: '已添加电台', addMissing: '缺少名称或网址', addBadUrl: '网址须以 http:// 或 https:// 开头', addBtn: '添加', addName: '名称', addUrl: 'https://...（流地址）' },
             ja: { insecure: 'この局はここでは再生できません', openTab: '新しいタブで開く', openTip: '別タブで開けば再生できます。', ownStation: '自分の局', addOk: '局を追加しました', addMissing: '名前かURLが未入力です', addBadUrl: 'URLはhttp://かhttps://で始めてください', addBtn: '追加', addName: '名前', addUrl: 'https://...（ストリームURL）' },
             en: { insecure: 'This station cannot play here', openTab: 'Open in a tab', openTip: 'It opens in a separate tab, where it does work.', ownStation: 'Own', addOk: 'Station added', addMissing: 'Name or URL missing', addBadUrl: 'The URL must start with http:// or https://', addBtn: 'Add', addName: 'Name', addUrl: 'https://... (stream URL)' },
-            pt: { insecure: 'Esta estação não pode tocar aqui', openTab: 'Abrir numa aba', openTip: 'Abre numa aba separada, onde funciona.', ownStation: 'Própria', addOk: 'Estação adicionada', addMissing: 'Falta o nome ou a URL', addBadUrl: 'A URL deve começar por http:// ou https://', addBtn: 'Adicionar', addName: 'Nome', addUrl: 'https://... (URL do stream)' },
+            pt: { favM: 'FAVORITOS', insecure: 'Esta estação não pode tocar aqui', openTab: 'Abrir numa aba', openTip: 'Abre numa aba separada, onde funciona.', ownStation: 'Própria', addOk: 'Estação adicionada', addMissing: 'Falta o nome ou a URL', addBadUrl: 'A URL deve começar por http:// ou https://', addBtn: 'Adicionar', addName: 'Nome', addUrl: 'https://... (URL do stream)' },
             ar: { insecure: 'لا يمكن تشغيل هذه المحطة هنا', openTab: 'فتح في تبويب', openTip: 'تُفتح في تبويب منفصل حيث تعمل.', ownStation: 'خاصة', addOk: 'تمت إضافة المحطة', addMissing: 'الاسم أو الرابط ناقص', addBadUrl: 'يجب أن يبدأ الرابط بـ http:// أو https://', addBtn: 'إضافة', addName: 'الاسم', addUrl: 'https://... (رابط البث)' }
         };
         const POD_TEXT = {
@@ -1002,7 +1013,7 @@
         const ICON = {
             play:  s => `<svg class="${s} ml-[2px]" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4l12 6-12 6z"></path></svg>`,
             pause: s => `<svg class="${s}" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>`,
-            heartOn:  s => `<svg class="${s} text-[#ffd600] fill-current" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path></svg>`,
+            heartOn:  s => `<svg class="${s} cor-batec text-[#ff2d55] fill-current drop-shadow-[0_0_4px_rgba(255,45,85,.55)]" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path></svg>`,
             heartOff: s => `<svg class="${s}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>`,
             volOn:  s => `<svg class="${s}" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>`,
             volOff: s => `<svg class="${s}" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.414L13.586 10l-1.293-1.293a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>`
@@ -1457,7 +1468,7 @@
                 const isActive = currentStation && currentStation.stationuuid === station.stationuuid;
 
                 const borderStyle = isActive ? 'border-[#ffd600] shadow-[0_0_15px_rgba(255,214,0,0.2)]' : 'border-white/5 hover:border-white/20 hover:bg-white/5';
-                const heartStyle = isFav ? 'text-[#ffd600] fill-current' : 'text-white/20 hover:text-white/60';
+                const heartStyle = isFav ? 'text-[#ff2d55] fill-current' : 'text-white/20 hover:text-white/60';
 
                 const card = document.createElement('div');
                 card.className = `station-card flex items-center p-3 rounded-xl border bg-black/40 cursor-pointer gap-3 ${borderStyle}`;
@@ -1513,7 +1524,10 @@
         function renderFavorites() {
             const llista = favList();
             const lbl = byId('lbl-favorites');
-            if (lbl) lbl.textContent = t().fav + ' (' + llista.length + '/' + MAX_FAVS + ')';
+            // "podcast" és masculí: en català, castellà, portuguès i italià
+            // la paraula canvia de gènere segons què estiguem llistant.
+            const paraula = (mode === 'podcasts' && t().favM) ? t().favM : t().fav;
+            if (lbl) lbl.textContent = paraula + ' (' + llista.length + '/' + MAX_FAVS + ')';
 
             const sidebar = byId('fav-sidebar');
             if (sidebar) sidebar.classList.toggle('is-empty', llista.length === 0);
@@ -2180,7 +2194,7 @@
                         <div class="text-sm font-semibold text-white truncate">${pod.name}</div>
                         <div class="text-xs text-white/40 truncate">${pod.artist}</div>
                     </div>
-                    <button class="fav-btn p-2 rounded-full hover:bg-white/10 transition-colors shrink-0 ${esFav ? 'text-[#ffd600] fill-current' : 'text-white/20 hover:text-white/60'}">
+                    <button class="fav-btn p-2 rounded-full hover:bg-white/10 transition-colors shrink-0 ${esFav ? 'text-[#ff2d55] fill-current' : 'text-white/20 hover:text-white/60'}">
                         ${esFav ? ICON.heartOn('w-4 h-4 pointer-events-none') : ICON.heartOff('w-4 h-4 pointer-events-none')}
                     </button>
                     <svg class="w-4 h-4 text-white/25 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>`;
