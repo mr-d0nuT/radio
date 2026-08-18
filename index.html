@@ -357,7 +357,16 @@
 
                 <div class="flex items-center gap-2 min-w-0 ml-1" id="main-title">
                     <img src="donut.png" alt="" id="logo-donut" class="h-10 w-auto object-contain shrink-0 drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
-                    <span class="text-sm font-semibold text-white/90 tracking-wide truncate" id="main-title-text">Ràdio</span>
+                    <div class="flex flex-col leading-none gap-[3px] select-none">
+                        <button onclick="setMode('radio')" id="mode-radio" class="flex items-center gap-1.5 text-[11px] font-bold tracking-wide transition-colors">
+                            <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 9h16v10H4z"/><path stroke-linecap="round" d="M8 4l9-1M8 14h4M17 14h.01"/></svg>
+                            <span id="mode-radio-text">Ràdio</span>
+                        </button>
+                        <button onclick="setMode('podcasts')" id="mode-podcasts" class="flex items-center gap-1.5 text-[11px] font-bold tracking-wide transition-colors">
+                            <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 3a3 3 0 013 3v5a3 3 0 11-6 0V6a3 3 0 013-3z"/><path stroke-linecap="round" d="M5 11a7 7 0 0014 0M12 18v3"/></svg>
+                            <span id="mode-podcasts-text">Podcasts</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -443,8 +452,24 @@
                         </div>
                     </div>
                 </div>
+                <div id="episodes-head" class="hidden-app items-center gap-3 mb-3 sticky top-0 z-10 bg-black/40 backdrop-blur-md -mx-1 px-1 py-2 rounded-lg">
+                    <button onclick="closeEpisodes()" class="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-colors shrink-0">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    <img id="episodes-art" src="" alt="" class="w-9 h-9 rounded-lg object-cover shrink-0 bg-white/5">
+                    <div class="min-w-0">
+                        <div id="episodes-title" class="text-sm font-bold text-white truncate"></div>
+                        <div id="episodes-count" class="text-[11px] text-white/40"></div>
+                    </div>
+                </div>
                 <div id="stations-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 hidden"></div>
             </div>
+        </div>
+
+        <div id="seek-row" class="hidden-app px-6 pt-2 items-center gap-2 bg-black/60 backdrop-blur-xl">
+            <span id="seek-now" class="text-[10px] text-white/40 tabular-nums w-9 text-right">0:00</span>
+            <input type="range" id="seek" min="0" max="1000" value="0" class="vol-range flex-1">
+            <span id="seek-total" class="text-[10px] text-white/40 tabular-nums w-9">0:00</span>
         </div>
 
         <!-- PLAYER BOTTOM BAR -->
@@ -587,6 +612,20 @@
             pt: { insecure: 'Esta estação não pode tocar aqui', openTab: 'Abrir numa aba', openTip: 'Abre numa aba separada, onde funciona.', ownStation: 'Própria', addOk: 'Estação adicionada', addMissing: 'Falta o nome ou a URL', addBadUrl: 'A URL deve começar por http:// ou https://', addBtn: 'Adicionar', addName: 'Nome', addUrl: 'https://... (URL do stream)' },
             ar: { insecure: 'لا يمكن تشغيل هذه المحطة هنا', openTab: 'فتح في تبويب', openTip: 'تُفتح في تبويب منفصل حيث تعمل.', ownStation: 'خاصة', addOk: 'تمت إضافة المحطة', addMissing: 'الاسم أو الرابط ناقص', addBadUrl: 'يجب أن يبدأ الرابط بـ http:// أو https://', addBtn: 'إضافة', addName: 'الاسم', addUrl: 'https://... (رابط البث)' }
         };
+        const POD_TEXT = {
+            es: { searchPod: 'Buscar podcast…', episodes: 'episodios', feedError: 'No se pudo leer el feed de este podcast.' },
+            ca: { searchPod: 'Cercar podcast…', episodes: 'episodis', feedError: 'No s\'ha pogut llegir el canal d\'aquest podcast.' },
+            en: { searchPod: 'Search podcast…', episodes: 'episodes', feedError: 'This podcast\'s feed could not be read.' },
+            pt: { searchPod: 'Procurar podcast…', episodes: 'episódios', feedError: 'Não foi possível ler o feed deste podcast.' },
+            fr: { searchPod: 'Rechercher un podcast…', episodes: 'épisodes', feedError: 'Impossible de lire le flux de ce podcast.' },
+            it: { searchPod: 'Cerca podcast…', episodes: 'episodi', feedError: 'Impossibile leggere il feed di questo podcast.' },
+            de: { searchPod: 'Podcast suchen…', episodes: 'Folgen', feedError: 'Der Feed dieses Podcasts ist nicht lesbar.' },
+            zh: { searchPod: '搜索播客…', episodes: '集', feedError: '无法读取该播客的订阅源。' },
+            ja: { searchPod: 'ポッドキャストを検索…', episodes: 'エピソード', feedError: 'このポッドキャストのフィードを読み込めませんでした。' },
+            ar: { searchPod: 'البحث عن بودكاست…', episodes: 'حلقات', feedError: 'تعذّرت قراءة تغذية هذا البودكاست.' }
+        };
+        Object.keys(POD_TEXT).forEach(k => Object.assign(i18nExtra[k], POD_TEXT[k]));
+
         const LOADING_TEXT = {
             es: { downloading: 'Descargando emisoras…', checking: 'Buscando novedades…' },
             ca: { downloading: 'Descarregant emissores…', checking: 'Buscant novetats…' },
@@ -1037,7 +1076,8 @@
 
             if (defaultCountry) {
                 byId('country-select').value = defaultCountry;
-                fetchStations(defaultCountry);
+                closeEpisodes(true);
+                loadList(defaultCountry);
             }
         }
 
@@ -1215,7 +1255,30 @@
             const countryVal = byId('country-select').value;
 
             searchTimeout = setTimeout(async () => {
-                if (query.length < 2) { fetchStations(countryVal); return; }
+                if (query.length < 2) { loadList(countryVal); return; }
+
+                if (mode === 'podcasts') {
+                    closeEpisodes(true);
+                    byId('loading-spinner').style.display = 'flex';
+                    byId('stations-list').classList.add('hidden');
+                    showProgress(t().downloading, null, null);
+                    try {
+                        const cc = ITUNES_CC[countryVal] || 'es';
+                        const d = await (await fetch('https://itunes.apple.com/search?media=podcast&limit=100&country='
+                                  + cc + '&term=' + encodeURIComponent(query))).json();
+                        paintPodcasts((d.results || []).filter(x => x.feedUrl).map(x => ({
+                            id: String(x.collectionId), name: x.collectionName, artist: x.artistName,
+                            art: x.artworkUrl600 || x.artworkUrl100 || '', feed: x.feedUrl,
+                            episodes: x.trackCount || 0
+                        })));
+                    } catch (e) {
+                        console.error('Error cercant podcasts:', e);
+                    }
+                    byId('loading-spinner').style.display = 'none';
+                    byId('stations-list').classList.remove('hidden');
+                    return;
+                }
+
 
                 byId('loading-spinner').style.display = 'flex';
                 byId('stations-list').classList.add('hidden');
@@ -1239,7 +1302,8 @@
 
         document.getElementById('country-select').addEventListener('change', (e) => {
             byId('search-input').value = '';
-            fetchStations(e.target.value);
+            closeEpisodes(true);
+            loadList(e.target.value);
         });
 
         // ============================================================
@@ -1777,6 +1841,223 @@
             if (cv) cv.addEventListener('click', cycleViz);
         });
 
+
+        // ============================================================
+        // PODCASTS
+        //
+        // Apple dona el rànquing per país i, amb els identificadors, un sol
+        // "lookup" en bloc torna el feed RSS de tots. Del feed en traiem els
+        // episodis. Tot amb CORS obert, així que el navegador ho pot llegir
+        // directament; els feeds que no en tenen, es descarten.
+        // ============================================================
+        const ITUNES_CC = { Catalunya: 'es', ES: 'es', FR: 'fr', IT: 'it', DE: 'de', CN: 'cn',
+                            JP: 'jp', MA: 'ma', GB: 'gb', US: 'us', PT: 'pt', BR: 'br',
+                            AR: 'ar', CO: 'co', CL: 'cl' };
+
+        let mode = localStorage.getItem('radioMode') === 'podcasts' ? 'podcasts' : 'radio';
+        let allPodcasts = [];
+        let currentPodcast = null;
+
+        function paintMode() {
+            const on = 'text-[#ffd600] drop-shadow-[0_0_6px_rgba(255,214,0,.5)]';
+            const off = 'text-white/30 hover:text-white/60';
+            const r = byId('mode-radio'), pc = byId('mode-podcasts');
+            if (!r || !pc) return;
+            r.className = 'flex items-center gap-1.5 text-[11px] font-bold tracking-wide transition-colors ' + (mode === 'radio' ? on : off);
+            pc.className = 'flex items-center gap-1.5 text-[11px] font-bold tracking-wide transition-colors ' + (mode === 'podcasts' ? on : off);
+        }
+
+        function setMode(m) {
+            if (mode === m) return;
+            mode = m;
+            localStorage.setItem('radioMode', m);
+            paintMode();
+            closeEpisodes(true);
+            byId('search-input').value = '';
+            byId('search-input').placeholder = m === 'podcasts' ? t().searchPod : t().search;
+            loadList(byId('country-select').value);
+        }
+
+        function loadList(region) {
+            return mode === 'podcasts' ? fetchPodcasts(region) : fetchStations(region);
+        }
+
+        /** Rànquing del país + feeds, desat al dispositiu com les emissores. */
+        async function fetchPodcasts(region) {
+            const cc = ITUNES_CC[region] || 'es';
+            const clau = 'pod-' + cc;
+            const spinner = byId('loading-spinner'), list = byId('stations-list');
+
+            const desat = await cacheGet(clau);
+            if (desat && desat.items && desat.items.length && Date.now() - desat.savedAt < 6 * 3600e3) {
+                paintPodcasts(desat.items);
+                spinner.style.display = 'none';
+                list.classList.remove('hidden');
+                return;
+            }
+
+            spinner.style.display = 'flex';
+            list.classList.add('hidden');
+            showProgress(t().downloading, null, null);
+
+            try {
+                const chart = await (await fetch('https://itunes.apple.com/' + cc + '/rss/toppodcasts/limit=100/json')).json();
+                const files = (chart.feed && chart.feed.entry) || [];
+                const ids = files.map(e => e.id.attributes['im:id']);
+
+                // el lookup admet molts identificadors alhora: una sola consulta
+                const info = {};
+                for (let i = 0; i < ids.length; i += 100) {
+                    const d = await (await fetch('https://itunes.apple.com/lookup?entity=podcast&id=' + ids.slice(i, i + 100).join(','))).json();
+                    (d.results || []).forEach(x => { info[x.collectionId] = x; });
+                    showProgress(t().downloading, i + 100, ids.length);
+                }
+
+                const items = files.map(e => {
+                    const id = e.id.attributes['im:id'];
+                    const x = info[id] || {};
+                    return {
+                        id, name: e['im:name'].label, artist: e['im:artist'].label,
+                        art: (x.artworkUrl600 || (e['im:image'] && e['im:image'][e['im:image'].length - 1].label) || ''),
+                        feed: x.feedUrl || '', episodes: x.trackCount || 0
+                    };
+                }).filter(x => x.feed);
+
+                await cacheSet(clau, { items, savedAt: Date.now() });
+                paintPodcasts(items);
+            } catch (e) {
+                console.error('Error carregant podcasts:', e);
+                list.innerHTML = `<div class="col-span-full text-center text-white/50 py-10">${t().connError}</div>`;
+            }
+            spinner.style.display = 'none';
+            list.classList.remove('hidden');
+        }
+
+        function paintPodcasts(items) {
+            allPodcasts = items;
+            const list = byId('stations-list');
+            list.innerHTML = '';
+            if (!items.length) {
+                list.innerHTML = `<div class="col-span-full text-center text-white/50 py-10">${t().noStations}</div>`;
+                return;
+            }
+            items.forEach(pod => {
+                const card = document.createElement('div');
+                card.className = 'station-card flex items-center p-3 rounded-xl border border-white/5 bg-black/40 cursor-pointer gap-3 hover:border-white/20 hover:bg-white/5';
+                card.innerHTML = `
+                    <div class="w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-white/5 border border-white/5">
+                        ${pod.art ? `<img src="${pod.art}" loading="lazy" decoding="async" class="w-full h-full object-cover">`
+                                  : `<span class="text-white/40 font-bold">${pod.name.charAt(0)}</span>`}
+                    </div>
+                    <div class="flex-1 overflow-hidden pointer-events-none">
+                        <div class="text-sm font-semibold text-white truncate">${pod.name}</div>
+                        <div class="text-xs text-white/40 truncate">${pod.artist}</div>
+                    </div>
+                    <svg class="w-4 h-4 text-white/25 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>`;
+                card.addEventListener('click', () => openEpisodes(pod));
+                list.appendChild(card);
+            });
+        }
+
+        // ---------- episodis ----------
+        const ITUNES_NS = 'http://www.itunes.com/dtds/podcast-1.0.dtd';
+
+        async function openEpisodes(pod) {
+            currentPodcast = pod;
+            const spinner = byId('loading-spinner'), list = byId('stations-list');
+            spinner.style.display = 'flex';
+            list.classList.add('hidden');
+            showProgress(t().downloading, null, null);
+
+            try {
+                const xml = await (await fetch(pod.feed)).text();
+                const doc = new DOMParser().parseFromString(xml, 'application/xml');
+                const eps = [...doc.querySelectorAll('item')].map(it => {
+                    const enc = it.querySelector('enclosure');
+                    const dur = it.getElementsByTagNameNS(ITUNES_NS, 'duration')[0];
+                    return {
+                        title: (it.querySelector('title') || {}).textContent || '',
+                        date: (it.querySelector('pubDate') || {}).textContent || '',
+                        dur: dur ? dur.textContent.trim() : '',
+                        url: enc ? enc.getAttribute('url') : ''
+                    };
+                }).filter(e => e.url);
+                paintEpisodes(pod, eps);
+            } catch (e) {
+                console.error('Feed il·legible:', e);
+                list.innerHTML = `<div class="col-span-full text-center text-white/50 py-10">${t().feedError}</div>`;
+                list.classList.remove('hidden');
+                byId('episodes-head').classList.remove('hidden-app');
+                byId('episodes-head').style.display = 'flex';
+            }
+            spinner.style.display = 'none';
+            list.classList.remove('hidden');
+        }
+
+        function paintEpisodes(pod, eps) {
+            const cap = byId('episodes-head');
+            cap.classList.remove('hidden-app');
+            cap.style.display = 'flex';
+            byId('episodes-art').src = pod.art || '';
+            byId('episodes-title').textContent = pod.name;
+            byId('episodes-count').textContent = eps.length + ' ' + t().episodes;
+
+            const list = byId('stations-list');
+            list.innerHTML = '';
+            eps.forEach(ep => {
+                const quan = ep.date ? new Date(ep.date) : null;
+                const data = quan && !isNaN(quan) ? quan.toLocaleDateString(currentLang, { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+                const card = document.createElement('div');
+                card.className = 'station-card flex items-center p-3 rounded-xl border border-white/5 bg-black/40 cursor-pointer gap-3 hover:border-white/20 hover:bg-white/5';
+                card.innerHTML = `
+                    <div class="w-9 h-9 rounded-lg bg-[#ffd600]/10 border border-[#ffd600]/25 flex items-center justify-center shrink-0">
+                        <svg class="w-4 h-4 text-[#ffd600] ml-[2px]" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4l12 6-12 6z"/></svg>
+                    </div>
+                    <div class="flex-1 overflow-hidden pointer-events-none">
+                        <div class="text-sm font-semibold text-white truncate">${ep.title}</div>
+                        <div class="text-xs text-white/40 truncate">${data}${ep.dur ? ' · ' + ep.dur : ''}</div>
+                    </div>`;
+                card.addEventListener('click', () => playEpisode(pod, ep));
+                list.appendChild(card);
+            });
+            byId('stations-grid').scrollTop = 0;
+        }
+
+        function closeEpisodes(silenciós) {
+            const cap = byId('episodes-head');
+            if (cap) { cap.classList.add('hidden-app'); cap.style.display = ''; }
+            currentPodcast = null;
+            if (!silenciós && mode === 'podcasts') paintPodcasts(allPodcasts);
+        }
+
+        /** Un episodi és un MP3 normal: el fem passar pel mateix reproductor. */
+        function playEpisode(pod, ep) {
+            playStation({
+                stationuuid: 'ep-' + (ep.url || '').slice(-40),
+                name: ep.title, url_resolved: ep.url,
+                country: pod.name, favicon: pod.art || '', episodi: true
+            }, true);
+        }
+
+        // ---------- barra d'avanç (només quan el que sona té durada) ----------
+        function fmt(s) {
+            if (!isFinite(s)) return '0:00';
+            const m = Math.floor(s / 60), q = Math.floor(s % 60);
+            return m + ':' + String(q).padStart(2, '0');
+        }
+
+        let arrossegant = false;
+        function syncSeek() {
+            const row = byId('seek-row');
+            if (!row) return;
+            const te = isFinite(audio.duration) && audio.duration > 0;
+            row.classList.toggle('hidden-app', !te);
+            if (!te || arrossegant) return;
+            byId('seek').value = Math.round(audio.currentTime / audio.duration * 1000);
+            byId('seek-now').textContent = fmt(audio.currentTime);
+            byId('seek-total').textContent = fmt(audio.duration);
+        }
+
         // ============================================================
         // ESTAT DEL STREAM (connectant / en directe / caigut)
         // ============================================================
@@ -1867,6 +2148,8 @@
             audio.muted = wasMuted;
             audioCors = wantCors;
             attachAudioListeners(audio);
+            ['timeupdate', 'loadedmetadata', 'durationchange', 'emptied'].forEach(ev =>
+                audio.addEventListener(ev, syncSeek));
             if (wantCors) connectAnalyser();
         }
 
@@ -2097,6 +2380,17 @@
         }
         attachAudioListeners(audio);
 
+        ['timeupdate', 'loadedmetadata', 'durationchange', 'emptied'].forEach(ev =>
+            audio.addEventListener(ev, syncSeek));
+        document.getElementById('seek').addEventListener('input', () => {
+            arrossegant = true;
+            if (isFinite(audio.duration)) byId('seek-now').textContent = fmt(byId('seek').value / 1000 * audio.duration);
+        });
+        document.getElementById('seek').addEventListener('change', () => {
+            if (isFinite(audio.duration)) audio.currentTime = byId('seek').value / 1000 * audio.duration;
+            arrossegant = false;
+        });
+
         document.getElementById('btn-play').addEventListener('click', togglePlay);
         document.getElementById('btn-gadget-play').addEventListener('click', togglePlay);
         document.getElementById('btn-gadget-next').addEventListener('click', playNext);
@@ -2154,7 +2448,9 @@
 
             renderFavorites();
             startViz();
-            fetchStations(currentLang === 'ca' ? 'Catalunya' : byId('country-select').value);
+            paintMode();
+            if (mode === 'podcasts') byId('search-input').placeholder = t().searchPod;
+            loadList(currentLang === 'ca' ? 'Catalunya' : byId('country-select').value);
         })();
     </script>
 </body>
