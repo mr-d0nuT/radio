@@ -442,10 +442,10 @@
             </div>
 
             <div id="flags-row" class="flex flex-wrap items-center gap-1.5 justify-end shrink-0 max-w-[206px] gap-y-1.5">
-                <button onclick="changeLanguage('es', 'ES')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="España"><img src="https://flagcdn.com/w20/es.png" class="w-full h-full object-cover"></button>
                 <button onclick="changeLanguage('ca', 'Catalunya')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="Catalunya">
                     <svg viewBox="0 0 900 600" class="w-full h-full object-cover"><rect width="900" height="600" fill="#fcd116"/><rect width="900" height="66.66" y="66.66" fill="#ce1126"/><rect width="900" height="66.66" y="200" fill="#ce1126"/><rect width="900" height="66.66" y="333.33" fill="#ce1126"/><rect width="900" height="66.66" y="466.66" fill="#ce1126"/></svg>
                 </button>
+                <button onclick="changeLanguage('es', 'ES')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="España"><img src="https://flagcdn.com/w20/es.png" class="w-full h-full object-cover"></button>
                 <button onclick="changeLanguage('fr', 'FR')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="France"><img src="https://flagcdn.com/w20/fr.png" class="w-full h-full object-cover"></button>
                 <button onclick="changeLanguage('it', 'IT')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="Italia"><img src="https://flagcdn.com/w20/it.png" class="w-full h-full object-cover"></button>
                 <button onclick="changeLanguage('de', 'DE')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="Deutschland"><img src="https://flagcdn.com/w20/de.png" class="w-full h-full object-cover"></button>
@@ -471,19 +471,19 @@
             <select id="country-select" class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#ffd600]/50 w-32 shrink-0 cursor-pointer appearance-none">
                 <option value="Catalunya" class="bg-gray-900">Catalunya</option>
                 <option value="ES" class="bg-gray-900">España</option>
+                <option value="DE" class="bg-gray-900">Alemania</option>
+                <option value="AR" class="bg-gray-900">Argentina</option>
+                <option value="BR" class="bg-gray-900">Brasil</option>
+                <option value="CL" class="bg-gray-900">Chile</option>
+                <option value="CN" class="bg-gray-900">China</option>
+                <option value="CO" class="bg-gray-900">Colombia</option>
+                <option value="US" class="bg-gray-900">Estados Unidos</option>
                 <option value="FR" class="bg-gray-900">Francia</option>
                 <option value="IT" class="bg-gray-900">Italia</option>
-                <option value="DE" class="bg-gray-900">Alemania</option>
-                <option value="CN" class="bg-gray-900">China</option>
                 <option value="JP" class="bg-gray-900">Japón</option>
                 <option value="MA" class="bg-gray-900">Marruecos</option>
-                <option value="GB" class="bg-gray-900">Reino Unido</option>
-                <option value="US" class="bg-gray-900">Estados Unidos</option>
                 <option value="PT" class="bg-gray-900">Portugal</option>
-                <option value="BR" class="bg-gray-900">Brasil</option>
-                <option value="AR" class="bg-gray-900">Argentina</option>
-                <option value="CO" class="bg-gray-900">Colombia</option>
-                <option value="CL" class="bg-gray-900">Chile</option>
+                <option value="GB" class="bg-gray-900">Reino Unido</option>
             </select>
             <button id="btn-add-station" onclick="toggleAddForm()" class="shrink-0 px-3 rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center" title="Afegir una emissora que no és a la llista">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
@@ -500,14 +500,12 @@
         <!-- CONTENT AREA -->
         <div id="content-area" class="flex-1 flex overflow-hidden">
             <!-- Sidebar Favorites -->
-            <div id="fav-sidebar" class="w-64 border-r border-white/5 bg-black/20 flex flex-col p-4 shrink-0">
-                <div class="text-[10px] font-bold text-white/40 tracking-wider mb-4 flex justify-between items-center" id="lbl-favorites">
-                    PREFERIDES (0/5)
-                </div>
-                <div id="favorites-list" class="flex flex-col gap-2 overflow-y-auto pr-1"></div>
-                <div id="favorites-empty" class="text-xs text-white/30 text-center mt-4 border border-dashed border-white/10 rounded-lg p-6 bg-white/5">
-                    Afegeix fins a 5 preferides per accés ràpid.
-                </div>
+            <div id="fav-sidebar" class="w-64 border-r border-white/5 bg-black/20 flex flex-col p-4 shrink-0 relative">
+                <button id="fav-toggle" onclick="toggleFavPanel()" class="w-full flex items-center justify-between gap-2 text-[10px] font-bold text-white/50 hover:text-white tracking-wider px-2 py-2 rounded-lg bg-white/5 border border-white/10 transition-colors">
+                    <span id="lbl-favorites">PREFERIDES (0/10)</span>
+                    <svg id="fav-caret" class="w-3 h-3 shrink-0 transition-transform" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </button>
+                <div id="fav-panel" class="hidden-app absolute left-4 right-4 top-full mt-1 z-30 max-h-72 overflow-y-auto flex flex-col gap-1.5 p-2 rounded-xl bg-[#12121a] border border-white/10 shadow-2xl"></div>
             </div>
 
             <!-- Main Grid -->
@@ -659,18 +657,48 @@
     <script>
         // --- Diccionario de Traducciones ---
         const i18n = {
-            es: { title: 'Emisoras de radio', search: 'Buscar emisora (ex: Altafulla)...', fav: 'FAVORITAS', noFav: 'Añade hasta 5 favoritas para acceso rápido.', noStation: 'Selecciona una emisora', subStation: 'Miles de opciones', connecting: 'Conectando…', offline: 'Emisora no disponible', live: 'En directo', noFavsShort: 'Sin favoritas', floatTitle: 'Gadget flotante activo', floatDesc: 'El reproductor está en una ventana pequeña sobre el escritorio.<br>No cierres esta pestaña: el audio sale de aquí.', backBtn: 'Volver a la ventana grande', popupBlocked: 'El navegador ha bloqueado la ventana flotante. Permite las ventanas emergentes para este sitio.', pipHint: 'Consejo: arrastra la esquina de la ventanita para hacerla más pequeña.', noStations: 'No se encontraron emisoras.', connError: 'Error de conexión.', favLimit: 'Has llegado al límite de 5 favoritas.', copied: 'Enlace del stream copiado' },
-            ca: { title: 'Emissores de ràdio', search: 'Cercar emissora (ex: Altafulla)...', fav: 'PREFERIDES', noFav: 'Afegeix fins a 5 preferides per accés ràpid.', noStation: 'Selecciona una emissora', subStation: "Milers d'opcions", connecting: 'Connectant…', offline: 'Emissora no disponible', live: 'En directe', noFavsShort: 'Sense preferides', floatTitle: 'Gadget flotant actiu', floatDesc: "El reproductor està en una finestra petita per damunt de l'escriptori.<br>No tanquis aquesta pestanya: l'àudio surt d'aquí.", backBtn: 'Tornar a la finestra gran', popupBlocked: 'El navegador ha bloquejat la finestra flotant. Permet les finestres emergents per a aquest lloc.', pipHint: 'Consell: arrossega la cantonada de la finestreta per fer-la més petita.', noStations: 'No s\'han trobat emissores.', connError: 'Error de connexió.', favLimit: 'Has arribat al límit de 5 preferides.', copied: 'Enllaç del stream copiat' },
-            fr: { title: 'Stations de radio', search: 'Rechercher une station...', fav: 'FAVORIS', noFav: 'Ajoutez jusqu\'à 5 favoris.', noStation: 'Sélectionnez une station', subStation: 'Des milliers d\'options', connecting: 'Connexion…', offline: 'Station indisponible', live: 'En direct', noFavsShort: 'Aucun favori', floatTitle: 'Gadget flottant actif', floatDesc: 'Le lecteur est dans une petite fenêtre au-dessus du bureau.<br>Ne fermez pas cet onglet : le son vient d\'ici.', backBtn: 'Revenir à la grande fenêtre', popupBlocked: 'Le navigateur a bloqué la fenêtre flottante. Autorisez les pop-ups.', pipHint: 'Astuce : redimensionnez la fenêtre par son coin.', noStations: 'Aucune station trouvée.', connError: 'Erreur de connexion.', favLimit: 'Limite de 5 favoris atteinte.', copied: 'Lien du flux copié' },
-            it: { title: 'Stazioni radio', search: 'Cerca stazione...', fav: 'PREFERITI', noFav: 'Aggiungi fino a 5 preferiti.', noStation: 'Seleziona una stazione', subStation: 'Migliaia di opzioni', connecting: 'Connessione…', offline: 'Stazione non disponibile', live: 'In diretta', noFavsShort: 'Nessun preferito', floatTitle: 'Gadget flottante attivo', floatDesc: 'Il player è in una finestrella sopra il desktop.<br>Non chiudere questa scheda: l\'audio esce da qui.', backBtn: 'Torna alla finestra grande', popupBlocked: 'Il browser ha bloccato la finestra. Consenti i pop-up.', pipHint: 'Suggerimento: ridimensiona la finestrella dall\'angolo.', noStations: 'Nessuna stazione trovata.', connError: 'Errore di connessione.', favLimit: 'Limite di 5 preferiti raggiunto.', copied: 'Link dello stream copiato' },
-            de: { title: 'Radiosender', search: 'Sender suchen...', fav: 'FAVORITEN', noFav: 'Fügen Sie bis zu 5 Favoriten hinzu.', noStation: 'Wählen Sie einen Sender', subStation: 'Tausende von Optionen', connecting: 'Verbinden…', offline: 'Sender nicht verfügbar', live: 'Live', noFavsShort: 'Keine Favoriten', floatTitle: 'Schwebendes Gadget aktiv', floatDesc: 'Der Player läuft in einem kleinen Fenster über dem Desktop.<br>Diesen Tab nicht schließen: der Ton kommt von hier.', backBtn: 'Zurück zum großen Fenster', popupBlocked: 'Der Browser hat das Fenster blockiert. Pop-ups erlauben.', pipHint: 'Tipp: Fenstergröße an der Ecke ziehen.', noStations: 'Keine Sender gefunden.', connError: 'Verbindungsfehler.', favLimit: 'Grenze von 5 Favoriten erreicht.', copied: 'Stream-Link kopiert' },
-            zh: { title: '广播电台', search: '搜索电台...', fav: '收藏', noFav: '最多添加5个收藏夹', noStation: '选择一个电台', subStation: '数以千计的选择', connecting: '连接中…', offline: '电台不可用', live: '直播中', noFavsShort: '无收藏', floatTitle: '悬浮小工具已启用', floatDesc: '播放器在桌面上的小窗口中。<br>请勿关闭此标签页：声音来自这里。', backBtn: '返回大窗口', popupBlocked: '浏览器阻止了浮动窗口，请允许弹出窗口。', pipHint: '提示：拖动窗口角落可调整大小。', noStations: '未找到电台。', connError: '连接错误。', favLimit: '收藏已达5个上限。', copied: '已复制音频流链接' },
-            ja: { title: 'ラジオ局', search: '局を検索...', fav: 'お気に入り', noFav: 'お気に入りを最大5つ追加', noStation: '局を選択', subStation: '何千ものオプション', connecting: '接続中…', offline: '利用できません', live: '生放送', noFavsShort: 'お気に入りなし', floatTitle: 'フローティング表示中', floatDesc: 'プレーヤーはデスクトップ上の小窓で動作中です。<br>このタブは閉じないでください。音声はここから出ます。', backBtn: '大きな窓に戻る', popupBlocked: 'ブラウザが小窓をブロックしました。ポップアップを許可してください。', pipHint: 'ヒント：角をドラッグしてサイズ変更できます。', noStations: '局が見つかりません。', connError: '接続エラー。', favLimit: 'お気に入りは5件までです。', copied: 'ストリームのリンクをコピーしました' },
-            en: { title: 'Radio stations', search: 'Search a station (e.g. Altafulla)...', fav: 'FAVOURITES', noFav: 'Add up to 5 favourites for quick access.', noStation: 'Select a station', subStation: 'Thousands of options', connecting: 'Connecting…', offline: 'Station unavailable', live: 'Live', noFavsShort: 'No favourites', floatTitle: 'Floating gadget active', floatDesc: 'The player is in a small window above your desktop.<br>Don\'t close this tab: the sound comes from here.', backBtn: 'Back to the big window', popupBlocked: 'The browser blocked the floating window. Allow pop-ups for this site.', pipHint: 'Tip: drag the corner of the little window to shrink it.', noStations: 'No stations found.', connError: 'Connection error.', favLimit: 'You have reached the limit of 5 favourites.', copied: 'Stream link copied' },
-            pt: { title: 'Estações de rádio', search: 'Procurar estação...', fav: 'FAVORITAS', noFav: 'Adicione até 5 favoritas para acesso rápido.', noStation: 'Selecione uma estação', subStation: 'Milhares de opções', connecting: 'Conectando…', offline: 'Estação indisponível', live: 'Ao vivo', noFavsShort: 'Sem favoritas', floatTitle: 'Gadget flutuante ativo', floatDesc: 'O player está numa janela pequena sobre a área de trabalho.<br>Não feche esta aba: o som sai daqui.', backBtn: 'Voltar à janela grande', popupBlocked: 'O navegador bloqueou a janela flutuante. Permita pop-ups neste site.', pipHint: 'Dica: arraste o canto da janelinha para diminuí-la.', noStations: 'Nenhuma estação encontrada.', connError: 'Erro de conexão.', favLimit: 'Você atingiu o limite de 5 favoritas.', copied: 'Link do stream copiado' },
-            ar: { title: 'محطات الراديو', search: 'البحث عن محطة...', fav: 'المفضلة', noFav: 'أضف ما يصل إلى 5 مفضلات', noStation: 'اختر محطة', subStation: 'آلاف الخيارات', connecting: 'جارٍ الاتصال…', offline: 'المحطة غير متاحة', live: 'بث مباشر', noFavsShort: 'لا مفضلات', floatTitle: 'الأداة العائمة نشطة', floatDesc: 'المشغّل في نافذة صغيرة فوق سطح المكتب.<br>لا تغلق هذه العلامة: الصوت يخرج من هنا.', backBtn: 'العودة إلى النافذة الكبيرة', popupBlocked: 'حظر المتصفح النافذة العائمة. اسمح بالنوافذ المنبثقة.', pipHint: 'نصيحة: اسحب الزاوية لتغيير الحجم.', noStations: 'لم يتم العثور على محطات.', connError: 'خطأ في الاتصال.', favLimit: 'وصلت إلى حد 5 مفضلات.', copied: 'تم نسخ رابط البث' }
+            es: { title: 'Emisoras de radio', search: 'Buscar emisora (ex: Altafulla)...', fav: 'FAVORITAS', noFav: 'Añade hasta 10 favoritas.', noStation: 'Selecciona una emisora', subStation: 'Miles de opciones', connecting: 'Conectando…', offline: 'Emisora no disponible', live: 'En directo', noFavsShort: 'Sin favoritas', floatTitle: 'Gadget flotante activo', floatDesc: 'El reproductor está en una ventana pequeña sobre el escritorio.<br>No cierres esta pestaña: el audio sale de aquí.', backBtn: 'Volver a la ventana grande', popupBlocked: 'El navegador ha bloqueado la ventana flotante. Permite las ventanas emergentes para este sitio.', pipHint: 'Consejo: arrastra la esquina de la ventanita para hacerla más pequeña.', noStations: 'No se encontraron emisoras.', connError: 'Error de conexión.', favLimit: 'Has llegado al límite de 10 favoritas.', copied: 'Enlace del stream copiado' },
+            ca: { title: 'Emissores de ràdio', search: 'Cercar emissora (ex: Altafulla)...', fav: 'PREFERIDES', noFav: 'Afegeix fins a 10 preferides.', noStation: 'Selecciona una emissora', subStation: "Milers d'opcions", connecting: 'Connectant…', offline: 'Emissora no disponible', live: 'En directe', noFavsShort: 'Sense preferides', floatTitle: 'Gadget flotant actiu', floatDesc: "El reproductor està en una finestra petita per damunt de l'escriptori.<br>No tanquis aquesta pestanya: l'àudio surt d'aquí.", backBtn: 'Tornar a la finestra gran', popupBlocked: 'El navegador ha bloquejat la finestra flotant. Permet les finestres emergents per a aquest lloc.', pipHint: 'Consell: arrossega la cantonada de la finestreta per fer-la més petita.', noStations: 'No s\'han trobat emissores.', connError: 'Error de connexió.', favLimit: 'Has arribat al límit de 10 preferides.', copied: 'Enllaç del stream copiat' },
+            fr: { title: 'Stations de radio', search: 'Rechercher une station...', fav: 'FAVORIS', noFav: 'Ajoutez jusqu\'à 5 favoris.', noStation: 'Sélectionnez une station', subStation: 'Des milliers d\'options', connecting: 'Connexion…', offline: 'Station indisponible', live: 'En direct', noFavsShort: 'Aucun favori', floatTitle: 'Gadget flottant actif', floatDesc: 'Le lecteur est dans une petite fenêtre au-dessus du bureau.<br>Ne fermez pas cet onglet : le son vient d\'ici.', backBtn: 'Revenir à la grande fenêtre', popupBlocked: 'Le navigateur a bloqué la fenêtre flottante. Autorisez les pop-ups.', pipHint: 'Astuce : redimensionnez la fenêtre par son coin.', noStations: 'Aucune station trouvée.', connError: 'Erreur de connexion.', favLimit: 'Limite de 10 favoris atteinte.', copied: 'Lien du flux copié' },
+            it: { title: 'Stazioni radio', search: 'Cerca stazione...', fav: 'PREFERITI', noFav: 'Aggiungi fino a 5 preferiti.', noStation: 'Seleziona una stazione', subStation: 'Migliaia di opzioni', connecting: 'Connessione…', offline: 'Stazione non disponibile', live: 'In diretta', noFavsShort: 'Nessun preferito', floatTitle: 'Gadget flottante attivo', floatDesc: 'Il player è in una finestrella sopra il desktop.<br>Non chiudere questa scheda: l\'audio esce da qui.', backBtn: 'Torna alla finestra grande', popupBlocked: 'Il browser ha bloccato la finestra. Consenti i pop-up.', pipHint: 'Suggerimento: ridimensiona la finestrella dall\'angolo.', noStations: 'Nessuna stazione trovata.', connError: 'Errore di connessione.', favLimit: 'Limite di 10 preferiti raggiunto.', copied: 'Link dello stream copiato' },
+            de: { title: 'Radiosender', search: 'Sender suchen...', fav: 'FAVORITEN', noFav: 'Fügen Sie bis zu 5 Favoriten hinzu.', noStation: 'Wählen Sie einen Sender', subStation: 'Tausende von Optionen', connecting: 'Verbinden…', offline: 'Sender nicht verfügbar', live: 'Live', noFavsShort: 'Keine Favoriten', floatTitle: 'Schwebendes Gadget aktiv', floatDesc: 'Der Player läuft in einem kleinen Fenster über dem Desktop.<br>Diesen Tab nicht schließen: der Ton kommt von hier.', backBtn: 'Zurück zum großen Fenster', popupBlocked: 'Der Browser hat das Fenster blockiert. Pop-ups erlauben.', pipHint: 'Tipp: Fenstergröße an der Ecke ziehen.', noStations: 'Keine Sender gefunden.', connError: 'Verbindungsfehler.', favLimit: 'Grenze von 10 Favoriten erreicht.', copied: 'Stream-Link kopiert' },
+            zh: { title: '广播电台', search: '搜索电台...', fav: '收藏', noFav: '最多添加5个收藏夹', noStation: '选择一个电台', subStation: '数以千计的选择', connecting: '连接中…', offline: '电台不可用', live: '直播中', noFavsShort: '无收藏', floatTitle: '悬浮小工具已启用', floatDesc: '播放器在桌面上的小窗口中。<br>请勿关闭此标签页：声音来自这里。', backBtn: '返回大窗口', popupBlocked: '浏览器阻止了浮动窗口，请允许弹出窗口。', pipHint: '提示：拖动窗口角落可调整大小。', noStations: '未找到电台。', connError: '连接错误。', favLimit: '收藏已达10个上限。', copied: '已复制音频流链接' },
+            ja: { title: 'ラジオ局', search: '局を検索...', fav: 'お気に入り', noFav: 'お気に入りを最大5つ追加', noStation: '局を選択', subStation: '何千ものオプション', connecting: '接続中…', offline: '利用できません', live: '生放送', noFavsShort: 'お気に入りなし', floatTitle: 'フローティング表示中', floatDesc: 'プレーヤーはデスクトップ上の小窓で動作中です。<br>このタブは閉じないでください。音声はここから出ます。', backBtn: '大きな窓に戻る', popupBlocked: 'ブラウザが小窓をブロックしました。ポップアップを許可してください。', pipHint: 'ヒント：角をドラッグしてサイズ変更できます。', noStations: '局が見つかりません。', connError: '接続エラー。', favLimit: 'お気に入りは10件までです。', copied: 'ストリームのリンクをコピーしました' },
+            en: { title: 'Radio stations', search: 'Search a station (e.g. Altafulla)...', fav: 'FAVOURITES', noFav: 'Add up to 10 favourites.', noStation: 'Select a station', subStation: 'Thousands of options', connecting: 'Connecting…', offline: 'Station unavailable', live: 'Live', noFavsShort: 'No favourites', floatTitle: 'Floating gadget active', floatDesc: 'The player is in a small window above your desktop.<br>Don\'t close this tab: the sound comes from here.', backBtn: 'Back to the big window', popupBlocked: 'The browser blocked the floating window. Allow pop-ups for this site.', pipHint: 'Tip: drag the corner of the little window to shrink it.', noStations: 'No stations found.', connError: 'Connection error.', favLimit: 'You have reached the limit of 10 favourites.', copied: 'Stream link copied' },
+            pt: { title: 'Estações de rádio', search: 'Procurar estação...', fav: 'FAVORITAS', noFav: 'Adicione até 5 favoritas para acesso rápido.', noStation: 'Selecione uma estação', subStation: 'Milhares de opções', connecting: 'Conectando…', offline: 'Estação indisponível', live: 'Ao vivo', noFavsShort: 'Sem favoritas', floatTitle: 'Gadget flutuante ativo', floatDesc: 'O player está numa janela pequena sobre a área de trabalho.<br>Não feche esta aba: o som sai daqui.', backBtn: 'Voltar à janela grande', popupBlocked: 'O navegador bloqueou a janela flutuante. Permita pop-ups neste site.', pipHint: 'Dica: arraste o canto da janelinha para diminuí-la.', noStations: 'Nenhuma estação encontrada.', connError: 'Erro de conexão.', favLimit: 'Você atingiu o limite de 10 favoritas.', copied: 'Link do stream copiado' },
+            ar: { title: 'محطات الراديو', search: 'البحث عن محطة...', fav: 'المفضلة', noFav: 'أضف ما يصل إلى 5 مفضلات', noStation: 'اختر محطة', subStation: 'آلاف الخيارات', connecting: 'جارٍ الاتصال…', offline: 'المحطة غير متاحة', live: 'بث مباشر', noFavsShort: 'لا مفضلات', floatTitle: 'الأداة العائمة نشطة', floatDesc: 'المشغّل في نافذة صغيرة فوق سطح المكتب.<br>لا تغلق هذه العلامة: الصوت يخرج من هنا.', backBtn: 'العودة إلى النافذة الكبيرة', popupBlocked: 'حظر المتصفح النافذة العائمة. اسمح بالنوافذ المنبثقة.', pipHint: 'نصيحة: اسحب الزاوية لتغيير الحجم.', noStations: 'لم يتم العثور على محطات.', connError: 'خطأ في الاتصال.', favLimit: 'وصلت إلى حد 10 مفضلات.', copied: 'تم نسخ رابط البث' }
         };
         // Missatges per a emissores que només emeten per http (bloquejades en una pàgina https)
+        // Els noms de les regions, en l'idioma de la bandera triada.
+        const REGIONS = ['Catalunya', 'ES', 'DE', 'AR', 'BR', 'CL', 'CN', 'CO', 'US', 'FR', 'IT', 'JP', 'MA', 'PT', 'GB'];
+        const REGION_NOMS = {
+            ca: { Catalunya: 'Catalunya', ES: 'Espanya', DE: 'Alemanya', AR: 'Argentina', BR: 'Brasil', CL: 'Xile', CN: 'Xina', CO: 'Colòmbia', US: 'Estats Units', FR: 'França', IT: 'Itàlia', JP: 'Japó', MA: 'Marroc', PT: 'Portugal', GB: 'Regne Unit' },
+            es: { Catalunya: 'Catalunya', ES: 'España', DE: 'Alemania', AR: 'Argentina', BR: 'Brasil', CL: 'Chile', CN: 'China', CO: 'Colombia', US: 'Estados Unidos', FR: 'Francia', IT: 'Italia', JP: 'Japón', MA: 'Marruecos', PT: 'Portugal', GB: 'Reino Unido' },
+            en: { Catalunya: 'Catalonia', ES: 'Spain', DE: 'Germany', AR: 'Argentina', BR: 'Brazil', CL: 'Chile', CN: 'China', CO: 'Colombia', US: 'United States', FR: 'France', IT: 'Italy', JP: 'Japan', MA: 'Morocco', PT: 'Portugal', GB: 'United Kingdom' },
+            pt: { Catalunya: 'Catalunha', ES: 'Espanha', DE: 'Alemanha', AR: 'Argentina', BR: 'Brasil', CL: 'Chile', CN: 'China', CO: 'Colômbia', US: 'Estados Unidos', FR: 'França', IT: 'Itália', JP: 'Japão', MA: 'Marrocos', PT: 'Portugal', GB: 'Reino Unido' },
+            fr: { Catalunya: 'Catalogne', ES: 'Espagne', DE: 'Allemagne', AR: 'Argentine', BR: 'Brésil', CL: 'Chili', CN: 'Chine', CO: 'Colombie', US: 'États-Unis', FR: 'France', IT: 'Italie', JP: 'Japon', MA: 'Maroc', PT: 'Portugal', GB: 'Royaume-Uni' },
+            it: { Catalunya: 'Catalogna', ES: 'Spagna', DE: 'Germania', AR: 'Argentina', BR: 'Brasile', CL: 'Cile', CN: 'Cina', CO: 'Colombia', US: 'Stati Uniti', FR: 'Francia', IT: 'Italia', JP: 'Giappone', MA: 'Marocco', PT: 'Portogallo', GB: 'Regno Unito' },
+            de: { Catalunya: 'Katalonien', ES: 'Spanien', DE: 'Deutschland', AR: 'Argentinien', BR: 'Brasilien', CL: 'Chile', CN: 'China', CO: 'Kolumbien', US: 'Vereinigte Staaten', FR: 'Frankreich', IT: 'Italien', JP: 'Japan', MA: 'Marokko', PT: 'Portugal', GB: 'Vereinigtes Königreich' },
+            zh: { Catalunya: '加泰罗尼亚', ES: '西班牙', DE: '德国', AR: '阿根廷', BR: '巴西', CL: '智利', CN: '中国', CO: '哥伦比亚', US: '美国', FR: '法国', IT: '意大利', JP: '日本', MA: '摩洛哥', PT: '葡萄牙', GB: '英国' },
+            ja: { Catalunya: 'カタルーニャ', ES: 'スペイン', DE: 'ドイツ', AR: 'アルゼンチン', BR: 'ブラジル', CL: 'チリ', CN: '中国', CO: 'コロンビア', US: 'アメリカ', FR: 'フランス', IT: 'イタリア', JP: '日本', MA: 'モロッコ', PT: 'ポルトガル', GB: 'イギリス' },
+            ar: { Catalunya: 'كتالونيا', ES: 'إسبانيا', DE: 'ألمانيا', AR: 'الأرجنتين', BR: 'البرازيل', CL: 'تشيلي', CN: 'الصين', CO: 'كولومبيا', US: 'الولايات المتحدة', FR: 'فرنسا', IT: 'إيطاليا', JP: 'اليابان', MA: 'المغرب', PT: 'البرتغال', GB: 'المملكة المتحدة' }
+        };
+
+        /** Reconstrueix el desplegable: Catalunya i Espanya al davant, la resta
+            per ordre alfabètic de l'idioma actiu. */
+        function paintRegions() {
+            const sel = byId('country-select');
+            if (!sel) return;
+            const actual = sel.value || 'Catalunya';
+            const noms = REGION_NOMS[currentLang] || REGION_NOMS.en;
+            const fixes = ['Catalunya', 'ES'];
+            const resta = REGIONS.filter(r => fixes.indexOf(r) < 0)
+                                 .sort((a, b) => noms[a].localeCompare(noms[b], currentLang));
+            sel.innerHTML = fixes.concat(resta)
+                .map(r => '<option value="' + r + '" class="bg-gray-900">' + noms[r] + '</option>').join('');
+            sel.value = actual;
+        }
+
         const i18nExtra = {
             es: { insecure: 'Esta emisora no puede sonar aquí', openTab: 'Abrir en pestaña', openTip: 'Se abre en una pestaña aparte, donde sí suena.', ownStation: 'Propia', addOk: 'Emisora añadida', addMissing: 'Falta el nombre o la URL', addBadUrl: 'La URL debe empezar por http:// o https://', addBtn: 'Añadir', addName: 'Nombre', addUrl: 'https://... (URL del stream)' },
             ca: { insecure: 'Aquesta emissora no pot sonar aquí', openTab: 'Obrir en pestanya', openTip: 'S\'obre en una pestanya a part, on sí que sona.', ownStation: 'Pròpia', addOk: 'Emissora afegida', addMissing: 'Falta el nom o la URL', addBadUrl: 'La URL ha de començar per http:// o https://', addBtn: 'Afegir', addName: 'Nom', addUrl: 'https://... (URL del stream)' },
@@ -845,22 +873,19 @@
             try { customStations = JSON.parse(localStorage.getItem('radioCustom') || '[]') || []; }
             catch (e) { customStations = []; }
 
-            let seen = [];
-            try { seen = JSON.parse(localStorage.getItem('radioSeedsSeen') || '[]') || []; }
-            catch (e) { seen = []; }
-
-            const present = new Set(customStations.map(s => s.url_resolved));
-            let added = 0;
+            // Les de fàbrica no es poden treure, així que simplement ens
+            // assegurem que hi són totes cada vegada que s'obre l'app.
+            const presents = new Set(customStations.map(s => s.url_resolved));
+            let afegides = 0;
             SEED_STATIONS.forEach(s => {
-                if (seen.includes(s.id) || present.has(s.url_resolved)) return;
+                if (presents.has(s.url_resolved)) return;
                 customStations.push({
                     stationuuid: 'seed-' + s.id, name: s.name, url_resolved: s.url_resolved,
                     country: 'Catalunya', favicon: '', custom: true
                 });
-                added++;
+                afegides++;
             });
-            localStorage.setItem('radioSeedsSeen', JSON.stringify(SEED_STATIONS.map(s => s.id)));
-            if (added) saveCustomStations();
+            if (afegides) saveCustomStations();
         }
 
         function saveCustomStations() {
@@ -922,7 +947,28 @@
         let isPlaying = false;
         let currentStation = null;
         let allStations = [];
+        const MAX_FAVS = 10;
         let favorites = JSON.parse(localStorage.getItem('radioFavs') || '[]');
+        let favPods = JSON.parse(localStorage.getItem('radioFavPods') || '[]');
+
+        /** Les preferides del mode actiu: emissores o podcasts. */
+        const favList = () => (mode === 'podcasts' ? favPods : favorites);
+        function saveFavs() {
+            localStorage.setItem('radioFavs', JSON.stringify(favorites));
+            localStorage.setItem('radioFavPods', JSON.stringify(favPods));
+        }
+
+        function toggleFavPanel(tancar) {
+            const p = byId('fav-panel'), c = byId('fav-caret');
+            if (!p) return;
+            const obert = !p.classList.contains('hidden-app');
+            const nou = tancar === true ? false : !obert;
+            p.classList.toggle('hidden-app', !nou);
+            if (c) c.style.transform = nou ? 'rotate(180deg)' : '';
+        }
+        document.addEventListener('click', e => {
+            if (!e.target.closest('#fav-sidebar')) toggleFavPanel(true);
+        });
 
         // Finestra flotant (Document PiP o popup). Mentre existeix, el gadget hi viu dins.
         let floatWin = null;
@@ -1114,7 +1160,7 @@
                 case 'ArrowUp':    e.preventDefault(); setVolume(audio.volume + 0.05); break;
                 case 'ArrowDown':  e.preventDefault(); setVolume(audio.volume - 0.05); break;
                 case 'm': case 'M': toggleMute(); break;
-                case 'f': case 'F': if (currentStation) toggleFavorite(currentStation); break;
+                case 'f': case 'F': { const x = itemPreferible(); if (x) toggleFavorite(x); break; }
                 case 'Escape':     if (floatWin) exitGadgetMode(); break;
             }
         }
@@ -1134,7 +1180,6 @@
             const etiq = byId('mode-radio-text');
             if (etiq) etiq.textContent = x.short;
             byId('search-input').placeholder = mode === 'podcasts' ? x.searchPod : x.search;
-            byId('favorites-empty').innerText = x.noFav;
             byId('lbl-detached-title').innerText = x.floatTitle;
             byId('lbl-detached-desc').innerHTML = x.floatDesc;
             byId('lbl-detached-btn').innerText = x.backBtn;
@@ -1146,6 +1191,7 @@
                 byId('player-subtitle').innerText = x.subStation;
             }
             renderFavorites();
+            paintRegions();
 
             if (defaultCountry) {
                 byId('country-select').value = defaultCountry;
@@ -1431,7 +1477,7 @@
                     <button class="fav-btn p-2 rounded-full hover:bg-white/10 transition-colors shrink-0 ${heartStyle}">
                         ${isFav ? ICON.heartOn('w-4 h-4 pointer-events-none') : ICON.heartOff('w-4 h-4 pointer-events-none')}
                     </button>
-                    ${station.custom ? `<button class="del-btn p-1 rounded-full text-white/20 hover:text-red-400 hover:bg-white/10 transition-colors shrink-0" title="Treure">
+                    ${station.own ? `<button class="del-btn p-1 rounded-full text-white/20 hover:text-red-400 hover:bg-white/10 transition-colors shrink-0" title="Treure">
                         <svg class="w-3.5 h-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                     </button>` : ''}
                 `;
@@ -1465,45 +1511,48 @@
         document.getElementById('stations-grid').addEventListener('scroll', growStations, { passive: true });
 
         function renderFavorites() {
-            const list = byId('favorites-list');
-            const emptyLabel = byId('favorites-empty');
+            const llista = favList();
             const lbl = byId('lbl-favorites');
-            if (lbl) lbl.innerHTML = `${t().fav} (${favorites.length}/5) <svg class="w-3 h-3 text-[#ffd600]" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>`;
+            if (lbl) lbl.textContent = t().fav + ' (' + llista.length + '/' + MAX_FAVS + ')';
+
+            const sidebar = byId('fav-sidebar');
+            if (sidebar) sidebar.classList.toggle('is-empty', llista.length === 0);
 
             renderGadgetFavs();
-            // Al mòbil la barra de preferides és horitzontal: si és buida, fa nosa.
-            const sidebar = byId('fav-sidebar');
-            if (sidebar) sidebar.classList.toggle('is-empty', favorites.length === 0);
-            if (!list || !emptyLabel) return;
+            const panel = byId('fav-panel');
+            if (!panel) return;
+            panel.innerHTML = '';
 
-            if (favorites.length === 0) {
-                list.innerHTML = '';
-                emptyLabel.style.display = 'block';
+            if (!llista.length) {
+                panel.innerHTML = `<div class="text-[11px] text-white/35 text-center py-3 px-2">${t().noFav}</div>`;
                 return;
             }
 
-            emptyLabel.style.display = 'none';
-            list.innerHTML = '';
-
-            favorites.forEach((station, index) => {
-                const isActive = currentStation && currentStation.stationuuid === station.stationuuid;
-                const activeStyle = isActive ? 'bg-white/10 border-[#ffd600]/50' : 'bg-black/20 border-white/5 hover:bg-white/5';
-
-                const item = document.createElement('div');
-                item.className = `flex items-center gap-3 p-2 rounded-lg border cursor-pointer group ${activeStyle}`;
-                item.innerHTML = `
-                    <span class="text-xs font-bold text-white/30 w-3">${index + 1}</span>
+            llista.forEach((x, i) => {
+                const actiu = mode === 'podcasts'
+                    ? currentPodcast && currentPodcast.id === x.id
+                    : currentStation && currentStation.stationuuid === x.stationuuid;
+                const fila = document.createElement('div');
+                fila.className = 'flex items-center gap-2 p-2 rounded-lg border cursor-pointer group '
+                    + (actiu ? 'bg-white/10 border-[#ffd600]/50' : 'bg-white/[.03] border-white/5 hover:bg-white/10');
+                fila.innerHTML = `
+                    <span class="text-[10px] font-bold text-white/30 w-3 shrink-0">${i + 1}</span>
                     <div class="flex-1 overflow-hidden">
-                        <div class="text-xs font-semibold text-white truncate group-hover:text-[#ffd600] transition-colors">${station.name}</div>
+                        <div class="text-xs font-semibold text-white truncate group-hover:text-[#ffd600] transition-colors">${x.name}</div>
                     </div>
-                    <button class="text-white/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all p-1" title="Eliminar">
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    </button>
-                `;
-
-                item.addEventListener('click', (e) => { if (!e.target.closest('button')) playStation(station); });
-                item.querySelector('button').addEventListener('click', (e) => { e.stopPropagation(); toggleFavorite(station); });
-                list.appendChild(item);
+                    <button class="text-white/25 hover:text-red-400 transition-colors p-1 shrink-0" title="Treure">
+                        <svg class="w-3 h-3 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>`;
+                fila.addEventListener('click', e => {
+                    if (e.target.closest('button')) return;
+                    toggleFavPanel(true);
+                    if (mode === 'podcasts') openEpisodes(x); else playStation(x);
+                });
+                fila.querySelector('button').addEventListener('click', e => {
+                    e.stopPropagation();
+                    toggleFavorite(x);
+                });
+                panel.appendChild(fila);
             });
         }
 
@@ -1512,6 +1561,7 @@
             const box = byId('gadget-favs');
             if (!box) return;
             box.innerHTML = '';
+            const favorites = favList();
 
             if (favorites.length === 0) {
                 box.innerHTML = `<span class="text-[10px] text-white/25 tracking-wide">${t().noFavsShort}</span>`;
@@ -1519,32 +1569,45 @@
             }
 
             favorites.forEach((station, i) => {
-                const isActive = currentStation && currentStation.stationuuid === station.stationuuid;
+                const isActive = mode === 'podcasts'
+                    ? currentPodcast && currentPodcast.id === station.id
+                    : currentStation && currentStation.stationuuid === station.stationuuid;
                 const chip = (box.ownerDocument || document).createElement('button');
                 chip.className = `fav-chip ${isActive ? 'is-active' : ''}`;
                 chip.textContent = i + 1;
                 chip.title = station.name;
-                chip.addEventListener('click', () => playStation(station));
+                chip.addEventListener('click', () => mode === 'podcasts' ? openEpisodes(station) : playStation(station));
                 box.appendChild(chip);
             });
         }
 
-        function toggleFavorite(station) {
-            const index = favorites.findIndex(f => f.stationuuid === station.stationuuid);
-            if (index > -1) {
-                favorites.splice(index, 1);
-            } else {
-                if (favorites.length >= 5) { toast(t().favLimit); return; }
-                favorites.push(station);
+        function toggleFavorite(x) {
+            const podcast = mode === 'podcasts';
+            const llista = favList();
+            const mateix = a => podcast ? a.id === x.id : a.stationuuid === x.stationuuid;
+
+            const i = llista.findIndex(mateix);
+            if (i > -1) llista.splice(i, 1);
+            else {
+                if (llista.length >= MAX_FAVS) { toast(t().favLimit); return; }
+                llista.push(x);
             }
-            localStorage.setItem('radioFavs', JSON.stringify(favorites));
+            saveFavs();
             renderFavorites();
             if (veientEmissores() && allStations.length > 0) renderStations(allStations);
+            if (mode === 'podcasts' && !currentPodcast) paintPodcasts(allPodcasts);
             updateFavIcons();
         }
 
+        /** Allò que el cor ha de marcar: el podcast si sona un episodi. */
+        function itemPreferible() {
+            if (mode === 'podcasts') return currentPodcast || null;
+            return currentStation;
+        }
+
         function updateFavIcons() {
-            const isFav = currentStation && favorites.some(f => f.stationuuid === currentStation.stationuuid);
+            const x = itemPreferible();
+            const isFav = x && favList().some(f => mode === 'podcasts' ? f.id === x.id : f.stationuuid === x.stationuuid);
             const main = byId('btn-fav-main');
             const gadget = byId('btn-gadget-fav');
             if (main)   main.innerHTML   = isFav ? ICON.heartOn('w-5 h-5') : ICON.heartOff('w-5 h-5');
@@ -1953,6 +2016,8 @@
             localStorage.setItem('radioMode', m);
             paintMode();
             closeEpisodes(true);
+            renderFavorites();   // cada mode té les seves preferides
+            updateFavIcons();
             byId('search-input').value = '';
             byId('search-input').placeholder = m === 'podcasts' ? t().searchPod : t().search;
             loadList(byId('country-select').value);
@@ -2103,6 +2168,7 @@
                 return;
             }
             items.forEach(pod => {
+                const esFav = favPods.some(f => f.id === pod.id);
                 const card = document.createElement('div');
                 card.className = 'station-card flex items-center p-3 rounded-xl border border-white/5 bg-black/40 cursor-pointer gap-3 hover:border-white/20 hover:bg-white/5';
                 card.innerHTML = `
@@ -2114,8 +2180,12 @@
                         <div class="text-sm font-semibold text-white truncate">${pod.name}</div>
                         <div class="text-xs text-white/40 truncate">${pod.artist}</div>
                     </div>
+                    <button class="fav-btn p-2 rounded-full hover:bg-white/10 transition-colors shrink-0 ${esFav ? 'text-[#ffd600] fill-current' : 'text-white/20 hover:text-white/60'}">
+                        ${esFav ? ICON.heartOn('w-4 h-4 pointer-events-none') : ICON.heartOff('w-4 h-4 pointer-events-none')}
+                    </button>
                     <svg class="w-4 h-4 text-white/25 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>`;
-                card.addEventListener('click', () => openEpisodes(pod));
+                card.querySelector('.fav-btn').addEventListener('click', e => { e.stopPropagation(); toggleFavorite(pod); });
+                card.addEventListener('click', e => { if (!e.target.closest('.fav-btn')) openEpisodes(pod); });
                 list.appendChild(card);
             });
         }
@@ -2556,8 +2626,8 @@
         document.getElementById('btn-gadget-play').addEventListener('click', togglePlay);
         document.getElementById('btn-gadget-next').addEventListener('click', playNext);
         document.getElementById('btn-gadget-prev').addEventListener('click', playPrev);
-        document.getElementById('btn-fav-main').addEventListener('click', () => { if (currentStation) toggleFavorite(currentStation); });
-        document.getElementById('btn-gadget-fav').addEventListener('click', () => { if (currentStation) toggleFavorite(currentStation); });
+        document.getElementById('btn-fav-main').addEventListener('click', () => { const x = itemPreferible(); if (x) toggleFavorite(x); });
+        document.getElementById('btn-gadget-fav').addEventListener('click', () => { const x = itemPreferible(); if (x) toggleFavorite(x); });
         // Doble clic a la caràtula del gadget = tornar a la finestra gran
         document.getElementById('gadget-artwork-container').addEventListener('dblclick', exitGadgetMode);
 
