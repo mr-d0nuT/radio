@@ -191,23 +191,37 @@
         /* Botó de reproducció amb relleu: llum a dalt a l'esquerra, ombra
            interior a baix i ombra projectada. Verd per engegar, taronja
            mentre sona. */
+        /* Botó quadrat d'aparell, no de caramel: cantonades suaus, una vora
+           de llum a dalt, una ombra a baix i prou. El color diu l'estat. */
         .btn-so {
-            border: none;
-            transition: transform .12s ease, filter .2s ease;
+            border: 1px solid rgba(255,255,255,.16);
+            border-radius: 14px;
+            color: #0a0a0f;
+            transition: transform .1s ease, filter .2s ease, background .3s ease;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.30),
+                        inset 0 -1px 0 rgba(0,0,0,.40),
+                        0 6px 14px rgba(0,0,0,.45);
         }
-        .btn-so:active { transform: scale(.93); }
-        .btn-so-play {
-            background: radial-gradient(circle at 34% 26%, #86efac 0%, #22c55e 48%, #15803d 100%);
-            box-shadow: inset 0 2px 5px rgba(255,255,255,.6), inset 0 -4px 7px rgba(0,0,0,.38),
-                        0 5px 12px rgba(0,0,0,.45), 0 0 18px rgba(34,197,94,.45);
+        .btn-so:hover  { filter: brightness(1.08); }
+        .btn-so:active { transform: translateY(1px) scale(.985);
+                         box-shadow: inset 0 2px 5px rgba(0,0,0,.45); }
+        .btn-so-play   { background: linear-gradient(180deg, #4ade80 0%, #22c55e 48%, #15803d 100%); }
+        .btn-so-pause  { background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 48%, #c2410c 100%); }
+
+        /* El símbol no es canvia de cop: el triangle s'encongeix girant i les
+           barres entren al seu lloc. És el que fan els reproductors bons. */
+        .glif { position: relative; display: block; width: 46%; height: 46%; }
+        .glif svg {
+            position: absolute; inset: 0; width: 100%; height: 100%;
+            transition: opacity .16s ease, transform .3s cubic-bezier(.34, 1.4, .5, 1);
+            filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.4));
         }
-        .btn-so-play:hover { filter: brightness(1.12); }
-        .btn-so-pause {
-            background: radial-gradient(circle at 34% 26%, #fed7aa 0%, #f97316 48%, #c2410c 100%);
-            box-shadow: inset 0 2px 5px rgba(255,255,255,.55), inset 0 -4px 7px rgba(0,0,0,.4),
-                        0 5px 12px rgba(0,0,0,.45), 0 0 18px rgba(249,115,22,.5);
+        .g-pausa { opacity: 0; transform: scale(.5) rotate(-32deg); }
+        .btn-so.sona .g-play  { opacity: 0; transform: scale(.5) rotate(32deg); }
+        .btn-so.sona .g-pausa { opacity: 1; transform: none; }
+        @media (prefers-reduced-motion: reduce) {
+            .glif svg { transition: opacity .1s linear; transform: none !important; }
         }
-        .btn-so-pause:hover { filter: brightness(1.1); }
 
         /* La targeta del que sona: marc fi que va girant de color, així
            contrasta sempre encara que el fons es tenyeixi, i respira. */
@@ -249,6 +263,15 @@
             text-transform: uppercase; letter-spacing: .12em;
             transition: color .25s ease;
         }
+        /* La bandera de la regió que s'està escoltant, encesa */
+        #flags-row > button { opacity: .45; transition: opacity .2s ease, transform .2s ease, box-shadow .2s ease; }
+        #flags-row > button:hover { opacity: .85; }
+        #flags-row > button.tria {
+            opacity: 1;
+            transform: scale(1.12);
+            box-shadow: 0 0 0 1.5px #ffd600, 0 0 8px rgba(255,214,0,.55);
+        }
+
         .mode-off { color: rgba(255,255,255,.28); }
         .mode-off:hover { color: rgba(255,255,255,.62); }
         .mode-on {
@@ -507,23 +530,23 @@
             </div>
 
             <div id="flags-row" class="flex flex-wrap items-center gap-1.5 justify-end shrink-0 max-w-[206px] gap-y-1.5">
-                <button onclick="changeLanguage('ca', 'Catalunya')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="Catalunya">
+                <button data-region="Catalunya" onclick="changeLanguage('ca', 'Catalunya')" class="w-5 h-3.5 rounded-sm overflow-hidden" title="Catalunya">
                     <svg viewBox="0 0 900 600" class="w-full h-full object-cover"><rect width="900" height="600" fill="#fcd116"/><rect width="900" height="66.66" y="66.66" fill="#ce1126"/><rect width="900" height="66.66" y="200" fill="#ce1126"/><rect width="900" height="66.66" y="333.33" fill="#ce1126"/><rect width="900" height="66.66" y="466.66" fill="#ce1126"/></svg>
                 </button>
-                <button onclick="changeLanguage('es', 'ES')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="España"><img src="https://flagcdn.com/w20/es.png" class="w-full h-full object-cover"></button>
-                <button onclick="changeLanguage('fr', 'FR')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="France"><img src="https://flagcdn.com/w20/fr.png" class="w-full h-full object-cover"></button>
-                <button onclick="changeLanguage('it', 'IT')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="Italia"><img src="https://flagcdn.com/w20/it.png" class="w-full h-full object-cover"></button>
-                <button onclick="changeLanguage('de', 'DE')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="Deutschland"><img src="https://flagcdn.com/w20/de.png" class="w-full h-full object-cover"></button>
-                <button onclick="changeLanguage('zh', 'CN')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="China"><img src="https://flagcdn.com/w20/cn.png" class="w-full h-full object-cover"></button>
-                <button onclick="changeLanguage('ja', 'JP')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="Japan"><img src="https://flagcdn.com/w20/jp.png" class="w-full h-full object-cover"></button>
-                <button onclick="changeLanguage('ar', 'MA')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="Morocco"><img src="https://flagcdn.com/w20/ma.png" class="w-full h-full object-cover"></button>
-                <button onclick="changeLanguage('en', 'GB')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="United Kingdom"><img src="https://flagcdn.com/w20/gb.png" class="w-full h-full object-cover"></button>
-                <button onclick="changeLanguage('en', 'US')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="United States"><img src="https://flagcdn.com/w20/us.png" class="w-full h-full object-cover"></button>
-                <button onclick="changeLanguage('pt', 'PT')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="Portugal"><img src="https://flagcdn.com/w20/pt.png" class="w-full h-full object-cover"></button>
-                <button onclick="changeLanguage('pt', 'BR')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="Brasil"><img src="https://flagcdn.com/w20/br.png" class="w-full h-full object-cover"></button>
-                <button onclick="changeLanguage('es', 'AR')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="Argentina"><img src="https://flagcdn.com/w20/ar.png" class="w-full h-full object-cover"></button>
-                <button onclick="changeLanguage('es', 'CO')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="Colombia"><img src="https://flagcdn.com/w20/co.png" class="w-full h-full object-cover"></button>
-                <button onclick="changeLanguage('es', 'CL')" class="w-5 h-3.5 rounded-sm overflow-hidden opacity-50 hover:opacity-100 transition-opacity" title="Chile"><img src="https://flagcdn.com/w20/cl.png" class="w-full h-full object-cover"></button>
+                <button data-region="ES" onclick="changeLanguage('es', 'ES')" class="w-5 h-3.5 rounded-sm overflow-hidden" title="España"><img src="https://flagcdn.com/w20/es.png" class="w-full h-full object-cover"></button>
+                <button data-region="FR" onclick="changeLanguage('fr', 'FR')" class="w-5 h-3.5 rounded-sm overflow-hidden" title="France"><img src="https://flagcdn.com/w20/fr.png" class="w-full h-full object-cover"></button>
+                <button data-region="IT" onclick="changeLanguage('it', 'IT')" class="w-5 h-3.5 rounded-sm overflow-hidden" title="Italia"><img src="https://flagcdn.com/w20/it.png" class="w-full h-full object-cover"></button>
+                <button data-region="DE" onclick="changeLanguage('de', 'DE')" class="w-5 h-3.5 rounded-sm overflow-hidden" title="Deutschland"><img src="https://flagcdn.com/w20/de.png" class="w-full h-full object-cover"></button>
+                <button data-region="CN" onclick="changeLanguage('zh', 'CN')" class="w-5 h-3.5 rounded-sm overflow-hidden" title="China"><img src="https://flagcdn.com/w20/cn.png" class="w-full h-full object-cover"></button>
+                <button data-region="JP" onclick="changeLanguage('ja', 'JP')" class="w-5 h-3.5 rounded-sm overflow-hidden" title="Japan"><img src="https://flagcdn.com/w20/jp.png" class="w-full h-full object-cover"></button>
+                <button data-region="MA" onclick="changeLanguage('ar', 'MA')" class="w-5 h-3.5 rounded-sm overflow-hidden" title="Morocco"><img src="https://flagcdn.com/w20/ma.png" class="w-full h-full object-cover"></button>
+                <button data-region="GB" onclick="changeLanguage('en', 'GB')" class="w-5 h-3.5 rounded-sm overflow-hidden" title="United Kingdom"><img src="https://flagcdn.com/w20/gb.png" class="w-full h-full object-cover"></button>
+                <button data-region="US" onclick="changeLanguage('en', 'US')" class="w-5 h-3.5 rounded-sm overflow-hidden" title="United States"><img src="https://flagcdn.com/w20/us.png" class="w-full h-full object-cover"></button>
+                <button data-region="PT" onclick="changeLanguage('pt', 'PT')" class="w-5 h-3.5 rounded-sm overflow-hidden" title="Portugal"><img src="https://flagcdn.com/w20/pt.png" class="w-full h-full object-cover"></button>
+                <button data-region="BR" onclick="changeLanguage('pt', 'BR')" class="w-5 h-3.5 rounded-sm overflow-hidden" title="Brasil"><img src="https://flagcdn.com/w20/br.png" class="w-full h-full object-cover"></button>
+                <button data-region="AR" onclick="changeLanguage('es', 'AR')" class="w-5 h-3.5 rounded-sm overflow-hidden" title="Argentina"><img src="https://flagcdn.com/w20/ar.png" class="w-full h-full object-cover"></button>
+                <button data-region="CO" onclick="changeLanguage('es', 'CO')" class="w-5 h-3.5 rounded-sm overflow-hidden" title="Colombia"><img src="https://flagcdn.com/w20/co.png" class="w-full h-full object-cover"></button>
+                <button data-region="CL" onclick="changeLanguage('es', 'CL')" class="w-5 h-3.5 rounded-sm overflow-hidden" title="Chile"><img src="https://flagcdn.com/w20/cl.png" class="w-full h-full object-cover"></button>
             </div>
         </div>
 
@@ -631,8 +654,8 @@
                 <div class="flex items-center gap-6">
                     <button id="btn-fav-main" class="text-white/40 hover:text-white transition-colors" title="Preferida"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg></button>
 
-                    <button id="btn-play" class="btn-so btn-so-play w-12 h-12 text-black rounded-full flex items-center justify-center">
-                        <svg class="w-5 h-5 ml-1" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4l12 6-12 6z"></path></svg>
+                    <button id="btn-play" class="btn-so btn-so-play w-12 h-12 flex items-center justify-center">
+                        <span class="glif"><svg class="g-play" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="3.6" stroke-linejoin="round" stroke-linecap="round"><path d="M9.7 6.6 17.8 12l-8.1 5.4z"/></svg><svg class="g-pausa" viewBox="0 0 24 24" fill="currentColor"><rect x="7.2" y="5" width="3.9" height="14" rx="1.95"/><rect x="12.9" y="5" width="3.9" height="14" rx="1.95"/></svg></span>
                     </button>
 
                     <button class="text-white/40 hover:text-white transition-colors" id="btn-copy-link" title="Copiar enllaç"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg></button>
@@ -701,9 +724,9 @@
         <div id="gadget-controls" class="flex items-center justify-between pt-3 border-t border-white/10 shrink-0">
             <button id="btn-gadget-prev" class="text-white/60 hover:text-white p-2 transition-colors" title="Anterior (←)"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M8.445 14.832A1 1 0 0010 14v-2.798l5.445 3.63A1 1 0 0017 14V6a1 1 0 00-1.555-.832L10 8.798V6a1 1 0 00-1.555-.832l-6 4a1 1 0 000 1.664l6 4z"></path></svg></button>
 
-            <button id="btn-gadget-play" class="btn-so btn-so-play w-14 h-14 text-black rounded-full flex items-center justify-center" title="Reproduir / pausar (Espai)">
-                <svg class="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4l12 6-12 6z"></path></svg>
-            </button>
+            <button id="btn-gadget-play" class="btn-so btn-so-play w-14 h-14 flex items-center justify-center" title="Reproduir / pausar (Espai)">
+            <span class="glif"><svg class="g-play" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="3.6" stroke-linejoin="round" stroke-linecap="round"><path d="M9.7 6.6 17.8 12l-8.1 5.4z"/></svg><svg class="g-pausa" viewBox="0 0 24 24" fill="currentColor"><rect x="7.2" y="5" width="3.9" height="14" rx="1.95"/><rect x="12.9" y="5" width="3.9" height="14" rx="1.95"/></svg></span>
+        </button>
 
             <button id="btn-gadget-next" class="text-white/60 hover:text-white p-2 transition-colors" title="Següent (→)"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M11.555 14.832A1 1 0 0010 14v-2.798l-5.445 3.63A1 1 0 003 14V6a1 1 0 001.555-.832L10 8.798V6a1 1 0 001.555-.832l6 4a1 1 0 000 1.664l-6 4z"></path></svg></button>
         </div>
@@ -766,6 +789,13 @@
 
         /** Reconstrueix el desplegable: Catalunya i Espanya al davant, la resta
             per ordre alfabètic de l'idioma actiu. */
+        /** Encén la bandera de la regió que s'està escoltant. */
+        function paintFlags() {
+            const actual = (byId('country-select') || {}).value;
+            document.querySelectorAll('#flags-row > button').forEach(b =>
+                b.classList.toggle('tria', b.dataset.region === actual));
+        }
+
         function paintRegions() {
             const sel = byId('country-select');
             if (!sel) return;
@@ -1088,8 +1118,17 @@
         // ICONES
         // ============================================================
         const ICON = {
-            play:  s => `<svg class="${s} ml-[2px]" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4l12 6-12 6z"></path></svg>`,
-            pause: s => `<svg class="${s}" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>`,
+            // Triangle amb les puntes arrodonides, centrat òpticament (el
+            // triangle "pesa" a l'esquerra, per això va lleugerament desplaçat).
+            play:  s => `<svg class="${s}" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor"
+                              stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round">
+                             <path d="M9.6 6.4 18 12l-8.4 5.6z"/>
+                         </svg>`,
+            // Dues barres netes, no un cercle dins d'un botó ja rodó.
+            pause: s => `<svg class="${s}" viewBox="0 0 24 24" fill="currentColor">
+                             <rect x="7.4" y="5.4" width="3.6" height="13.2" rx="1.8"/>
+                             <rect x="13" y="5.4" width="3.6" height="13.2" rx="1.8"/>
+                         </svg>`,
             heartOn:  s => `<svg class="${s} cor-batec text-[#ff2d55] fill-current drop-shadow-[0_0_4px_rgba(255,45,85,.55)]" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"></path></svg>`,
             heartOff: s => `<svg class="${s}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>`,
             volOn:  s => `<svg class="${s}" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>`,
@@ -1283,6 +1322,7 @@
             }
             renderFavorites();
             paintRegions();
+            paintFlags();
 
             if (defaultCountry) {
                 byId('country-select').value = defaultCountry;
@@ -1513,6 +1553,7 @@
         document.getElementById('country-select').addEventListener('change', (e) => {
             byId('search-input').value = '';
             closeEpisodes(true);
+            paintFlags();
             loadList(e.target.value);
         });
 
@@ -2430,7 +2471,10 @@
         function syncSeek() {
             const row = byId('seek-row');
             if (!row) return;
-            const te = isFinite(audio.duration) && audio.duration > 0;
+            // Molts streams en directe declaren una durada falsa. La barra
+            // només té sentit per a un episodi de podcast.
+            const te = !!(currentStation && currentStation.episodi)
+                       && isFinite(audio.duration) && audio.duration > 0;
             row.classList.toggle('hidden-app', !te);
             if (!te || arrossegant) return;
             byId('seek').value = Math.round(audio.currentTime / audio.duration * 1000);
@@ -2730,11 +2774,9 @@
         }
 
         function setPlayIcons(playing) {
-            const b1 = byId('btn-play'), b2 = byId('btn-gadget-play');
-            if (b1) b1.innerHTML = playing ? ICON.pause('w-5 h-5') : ICON.play('w-5 h-5');
-            if (b2) b2.innerHTML = playing ? ICON.pause('w-6 h-6') : ICON.play('w-6 h-6');
-            [b1, b2].forEach(b => {
+            [byId('btn-play'), byId('btn-gadget-play')].forEach(b => {
                 if (!b) return;
+                b.classList.toggle('sona', playing);
                 b.classList.toggle('btn-so-pause', playing);
                 b.classList.toggle('btn-so-play', !playing);
             });
