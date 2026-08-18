@@ -577,7 +577,7 @@
                 <div class="flex items-center gap-6">
                     <button id="btn-fav-main" class="text-white/40 hover:text-white transition-colors" title="Preferida"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg></button>
 
-                    <button id="btn-play" class="w-12 h-12 bg-[#ffd600] text-black rounded-full flex items-center justify-center hover:bg-yellow-400 hover:scale-105 transition-all shadow-[0_0_15px_rgba(255,214,0,0.4)]">
+                    <button id="btn-play" class="w-12 h-12 bg-[#22c55e] text-black rounded-full flex items-center justify-center hover:bg-[#16a34a] hover:scale-105 transition-all shadow-[0_0_15px_rgba(34,197,94,0.45)]">
                         <svg class="w-5 h-5 ml-1" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4l12 6-12 6z"></path></svg>
                     </button>
 
@@ -647,7 +647,7 @@
         <div id="gadget-controls" class="flex items-center justify-between pt-3 border-t border-white/10 shrink-0">
             <button id="btn-gadget-prev" class="text-white/60 hover:text-white p-2 transition-colors" title="Anterior (←)"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M8.445 14.832A1 1 0 0010 14v-2.798l5.445 3.63A1 1 0 0017 14V6a1 1 0 00-1.555-.832L10 8.798V6a1 1 0 00-1.555-.832l-6 4a1 1 0 000 1.664l6 4z"></path></svg></button>
 
-            <button id="btn-gadget-play" class="w-14 h-14 bg-[#ffd600] text-black rounded-full flex items-center justify-center hover:bg-yellow-400 transition-all hover:scale-105 shadow-[0_0_20px_rgba(255,214,0,0.3)]" title="Reproduir / pausar (Espai)">
+            <button id="btn-gadget-play" class="w-14 h-14 bg-[#22c55e] text-black rounded-full flex items-center justify-center hover:bg-[#16a34a] transition-all hover:scale-105 shadow-[0_0_20px_rgba(34,197,94,0.35)]" title="Reproduir / pausar (Espai)">
                 <svg class="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4l12 6-12 6z"></path></svg>
             </button>
 
@@ -2234,7 +2234,24 @@
 
         /** Llegeix un canal RSS i en treu els episodis. */
         async function llegirCanal(url) {
-            const xml = await (await fetch(url)).text();
+            // Compte: response.text() sempre descodifica en UTF-8, encara que
+            // el canal digui una altra cosa. Molts feeds van en ISO-8859-1 i
+            // els accents sortirien com a rombes. Els llegim en cru i els
+            // descodifiquem amb la codificació que declaren.
+            const res = await fetch(url);
+            const buf = await res.arrayBuffer();
+            const cap = new TextDecoder('utf-8').decode(buf.slice(0, 300));
+            const decl = /encoding=["']([\w-]+)["']/i.exec(cap);
+            const hdr = /charset=([\w-]+)/i.exec(res.headers.get('content-type') || '');
+            const codi = ((decl && decl[1]) || (hdr && hdr[1]) || 'utf-8').toLowerCase();
+
+            const prova = c => { try { return new TextDecoder(c).decode(buf); } catch (e) { return null; } };
+            let xml = prova(codi);
+            // Si encara surten caràcters de reemplaçament, la declaració mentia.
+            if (!xml || xml.indexOf('\uFFFD') > -1) {
+                const alt = prova(codi.indexOf('utf') === 0 ? 'windows-1252' : 'utf-8');
+                if (alt && (!xml || alt.indexOf('\uFFFD') < 0)) xml = alt;
+            }
             const doc = new DOMParser().parseFromString(xml, 'application/xml');
             if (doc.querySelector('parsererror')) throw new Error('XML il·legible');
             return [...doc.querySelectorAll('item')].map(it => {
