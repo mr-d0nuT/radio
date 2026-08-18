@@ -12,6 +12,9 @@
     <link rel="apple-touch-icon" href="icon-180.png">
     <link rel="manifest" href="manifest.json">
     <title>Emissores de ràdio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
@@ -172,6 +175,32 @@
         }
         #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+        /* Commutador Ràdio / Podcasts: l'actiu batega amb una aura */
+        .mode-btn {
+            display: flex; align-items: center; gap: 6px;
+            /* La tipografia només aquí: la resta de l'app es queda com estava */
+            font-family: 'Outfit', -apple-system, sans-serif;
+            font-size: 14px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: .12em;
+            transition: color .25s ease;
+        }
+        .mode-off { color: rgba(255,255,255,.28); }
+        .mode-off:hover { color: rgba(255,255,255,.62); }
+        .mode-on {
+            color: #ffd600;
+            animation: mode-aura 2.1s ease-in-out infinite;
+        }
+        @keyframes mode-aura {
+            0%, 100% { text-shadow: 0 0 5px rgba(255,214,0,.45), 0 0 13px rgba(255,214,0,.16); }
+            50%      { text-shadow: 0 0 11px rgba(255,214,0,.9),  0 0 24px rgba(255,214,0,.45); }
+        }
+        .mode-ico { width: 23px; height: 23px; flex-shrink: 0; transition: all .25s ease; }
+        .mode-off .mode-ico { opacity: .45; filter: saturate(.35); }
+        .mode-on .mode-ico { opacity: 1; filter: drop-shadow(0 0 5px rgba(255,214,0,.55)); }
+        @media (prefers-reduced-motion: reduce) {
+            .mode-on { animation: none; text-shadow: 0 0 9px rgba(255,214,0,.6); }
+        }
+
         /* ============================================================
            AMBIENT
            El logotip de l'emissora, ampliat i desenfocat fins que només en
@@ -265,7 +294,8 @@
 
             /* Capçalera del mòbil: [+] 🍩 Ràdio ......... banderes.
                Més alta perquè el dònut hi càpiga sencer, sense escapçar-lo. */
-            #header-bar { min-height: 4.75rem; padding-top: 10px; padding-bottom: 10px; }
+            #header-bar { min-height: 4.75rem; padding-top: 10px; padding-bottom: 10px;
+                          padding-left: 8px; padding-right: 10px; }
             #logo-donut { height: 3.25rem; width: auto; }
             #flags-row { width: auto; flex: 0 1 auto; row-gap: 5px; }
             #flags-row > button { flex: 0 0 auto; }
@@ -328,6 +358,8 @@
         /* Pantalles molt estretes: retallem marges perquè hi càpiga tot */
         @media (max-width: 420px) {
             #player-bar, #add-form { padding-left: 12px; padding-right: 12px; }
+            /* menys interlletratge: així les banderes no se n'escapen a una tercera fila */
+            .mode-btn { font-size: 13px; letter-spacing: .05em; gap: 5px; }
             #flags-row { gap: 4px; }
         }
     </style>
@@ -355,15 +387,43 @@
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                 </button>
 
-                <div class="flex items-center gap-2 min-w-0 ml-1" id="main-title">
+                <div class="flex items-center gap-2 min-w-0" id="main-title">
                     <img src="donut.png" alt="" id="logo-donut" class="h-10 w-auto object-contain shrink-0 drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
-                    <div class="flex flex-col leading-none gap-[3px] select-none">
-                        <button onclick="setMode('radio')" id="mode-radio" class="flex items-center gap-1.5 text-[11px] font-bold tracking-wide transition-colors">
-                            <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 9h16v10H4z"/><path stroke-linecap="round" d="M8 4l9-1M8 14h4M17 14h.01"/></svg>
+                    <div class="flex flex-col leading-none gap-[5px] select-none">
+                        <button onclick="setMode('radio')" id="mode-radio" class="mode-btn">
+                            <svg class="mode-ico" viewBox="0 0 24 24" fill="none">
+                                <defs>
+                                    <linearGradient id="rd-body" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0" stop-color="#fbbf24"/><stop offset="1" stop-color="#b45309"/>
+                                    </linearGradient>
+                                </defs>
+                                <path d="M14.5 2.6 19.6 6" stroke="#e2e8f0" stroke-width="1.6" stroke-linecap="round"/>
+                                <circle cx="14.2" cy="2.6" r="1.2" fill="#f87171"/>
+                                <rect x="2" y="7.5" width="20" height="13" rx="2.6" fill="url(#rd-body)"/>
+                                <rect x="2" y="7.5" width="20" height="13" rx="2.6" stroke="rgba(0,0,0,.35)"/>
+                                <circle cx="8" cy="14" r="3.7" fill="#1f2937"/>
+                                <circle cx="8" cy="14" r="1.7" fill="#94a3b8"/>
+                                <rect x="13.2" y="10" width="6.6" height="3.4" rx="1" fill="#fef3c7"/>
+                                <path d="M15 11.7h3" stroke="#ea580c" stroke-width="1.2" stroke-linecap="round"/>
+                                <circle cx="14.6" cy="17.2" r="1.4" fill="#22d3ee"/>
+                                <circle cx="18.6" cy="17.2" r="1.4" fill="#f472b6"/>
+                            </svg>
                             <span id="mode-radio-text">Ràdio</span>
                         </button>
-                        <button onclick="setMode('podcasts')" id="mode-podcasts" class="flex items-center gap-1.5 text-[11px] font-bold tracking-wide transition-colors">
-                            <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 3a3 3 0 013 3v5a3 3 0 11-6 0V6a3 3 0 013-3z"/><path stroke-linecap="round" d="M5 11a7 7 0 0014 0M12 18v3"/></svg>
+                        <button onclick="setMode('podcasts')" id="mode-podcasts" class="mode-btn">
+                            <svg class="mode-ico" viewBox="0 0 24 24" fill="none">
+                                <defs>
+                                    <linearGradient id="pc-cup" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0" stop-color="#f0abfc"/><stop offset="1" stop-color="#a21caf"/>
+                                    </linearGradient>
+                                </defs>
+                                <path d="M3.6 15.2v-3.1a8.4 8.4 0 0 1 16.8 0v3.1" stroke="#38bdf8" stroke-width="2.1" stroke-linecap="round"/>
+                                <rect x="1.4" y="12.4" width="5.4" height="8.2" rx="2.7" fill="url(#pc-cup)"/>
+                                <rect x="17.2" y="12.4" width="5.4" height="8.2" rx="2.7" fill="url(#pc-cup)"/>
+                                <rect x="3" y="14.4" width="2.2" height="4.2" rx="1.1" fill="#fde68a"/>
+                                <rect x="18.8" y="14.4" width="2.2" height="4.2" rx="1.1" fill="#fde68a"/>
+                                <path d="M9.4 15.6v-2.4M12 17.4V11.4M14.6 15.6v-2.4" stroke="#facc15" stroke-width="1.9" stroke-linecap="round"/>
+                            </svg>
                             <span id="mode-podcasts-text">Podcasts</span>
                         </button>
                     </div>
@@ -1861,12 +1921,10 @@
         let currentPodcast = null;
 
         function paintMode() {
-            const on = 'text-[#ffd600] drop-shadow-[0_0_6px_rgba(255,214,0,.5)]';
-            const off = 'text-white/30 hover:text-white/60';
             const r = byId('mode-radio'), pc = byId('mode-podcasts');
             if (!r || !pc) return;
-            r.className = 'flex items-center gap-1.5 text-[11px] font-bold tracking-wide transition-colors ' + (mode === 'radio' ? on : off);
-            pc.className = 'flex items-center gap-1.5 text-[11px] font-bold tracking-wide transition-colors ' + (mode === 'podcasts' ? on : off);
+            r.className = 'mode-btn ' + (mode === 'radio' ? 'mode-on' : 'mode-off');
+            pc.className = 'mode-btn ' + (mode === 'podcasts' ? 'mode-on' : 'mode-off');
         }
 
         function setMode(m) {
@@ -1936,6 +1994,10 @@
         }
 
         function paintPodcasts(items) {
+            // Ordre alfabètic, com les emissores. El rànquing d'Apple ve per
+            // popularitat, però costa trobar-hi res.
+            items = items.slice().sort((a, b) =>
+                a.name.trim().localeCompare(b.name.trim(), undefined, { sensitivity: 'base' }));
             allPodcasts = items;
             const list = byId('stations-list');
             list.innerHTML = '';
