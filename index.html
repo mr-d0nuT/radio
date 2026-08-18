@@ -1513,16 +1513,18 @@
         // una animació falsa que fingeixi seguir la música.
         // ============================================================
         let vizRAF = null;
+        let vizWipe = false;
         const vizPeaks = {};
 
         // Cinc maneres de dibuixar el mateix so. Es canvia tocant l'equalitzador.
-        const VIZ_STYLES = ['blocs', 'linia', 'mirall', 'punts', 'ona'];
+        const VIZ_STYLES = ['blocs', 'linia', 'mirall', 'ventall', 'ona'];
         let vizStyle = Math.min(VIZ_STYLES.length - 1, Math.max(0, +(localStorage.getItem('radioViz') || 0)));
 
         function cycleViz() {
             vizStyle = (vizStyle + 1) % VIZ_STYLES.length;
             localStorage.setItem('radioViz', vizStyle);
             Object.keys(vizPeaks).forEach(k => delete vizPeaks[k]);
+            vizWipe = true;
             toast((vizStyle + 1) + ' / ' + VIZ_STYLES.length);
         }
 
@@ -1586,6 +1588,7 @@
                 }
             }
 
+            const wipeAra = vizWipe;
             targets.forEach(({ cv, ctx, maxH, id }) => {
                 if (!cv.clientWidth) return;
                 const dpr = Math.min(2, (cv.ownerDocument.defaultView || window).devicePixelRatio || 1);
@@ -1693,26 +1696,30 @@
                         ctx.fillRect(padX + i * (bw + gap), cy - half, bw, half * 2);
                     }
 
-                } else if (VIZ_STYLES[vizStyle] === 'punts') {
-                    // Matriu de punts: cada columna s'encén fins al seu nivell.
-                    const cols = Math.max(24, Math.min(70, Math.floor(usableW / 10)));
-                    const gap = 2;
-                    const d = Math.min((usableW - gap * (cols - 1)) / cols, petit ? 4 : 6);
-                    const files = Math.max(3, Math.floor(maxH / (d + gap)));
-                    for (let i = 0; i < cols; i++) {
-                        const level = banda(i, cols);
-                        const lit = Math.round(level * files);
-                        const cx = padX + i * ((usableW - d) / (cols - 1)) + d / 2;
-                        for (let k = 0; k < files; k++) {
-                            const encès = k < lit;
-                            ctx.globalAlpha = encès ? 1 : 0.10;
-                            ctx.fillStyle = 'hsl(' + to(i, cols).toFixed(1) + ', 95%, ' + (encès ? 58 : 70) + '%)';
-                            ctx.beginPath();
-                            ctx.arc(cx, h - (k + 0.5) * (d + gap), d / 2, 0, 6.284);
-                            ctx.fill();
-                        }
+                } else if (VIZ_STYLES[vizStyle] === 'ventall') {
+                    // Ventall: els raigs surten del centre de baix i s'obren
+                    // en mig cercle. Els greus queden a l'esquerra i els aguts
+                    // a la dreta, així que la forma balla molt més que unes
+                    // barres verticals.
+                    const n = Math.max(28, Math.min(72, Math.floor(usableW / 9)));
+                    const cxp = w / 2, cyp = h - 3;
+                    const r0 = petit ? 5 : 9;
+                    const llarg = maxH - r0;
+                    ctx.lineWidth = petit ? 2 : 3.2;
+                    ctx.shadowBlur = petit ? 4 : 9;
+                    for (let i = 0; i < n; i++) {
+                        const level = banda(i, n);
+                        const ang = Math.PI + (i / (n - 1)) * Math.PI;
+                        const r1 = r0 + Math.max(2, level * llarg);
+                        const col = 'hsl(' + to(i, n).toFixed(1) + ', 95%, ' + (48 + level * 20).toFixed(0) + '%)';
+                        ctx.strokeStyle = col;
+                        ctx.shadowColor = col;
+                        ctx.beginPath();
+                        ctx.moveTo(cxp + Math.cos(ang) * r0, cyp + Math.sin(ang) * r0);
+                        ctx.lineTo(cxp + Math.cos(ang) * r1, cyp + Math.sin(ang) * r1);
+                        ctx.stroke();
                     }
-                    ctx.globalAlpha = 1;
+                    ctx.shadowBlur = 0;
 
                 } else {
                     // Oscil·loscopi: la forma d'ona real, no l'espectre.
@@ -1737,6 +1744,7 @@
                     ctx.shadowBlur = 0;
                 }
             });
+            vizWipe = false;
         }
 
         function startViz() { if (!vizRAF) vizRAF = requestAnimationFrame(drawViz); }
