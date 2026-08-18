@@ -218,7 +218,7 @@
            VISUALITZADOR
            Espectre real del so que sona, llegit amb la Web Audio API.
            ============================================================ */
-        .viz { pointer-events: none; }
+        .viz { pointer-events: auto; cursor: pointer; }
         #viz-gadget { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; }
         /* Res de transicions d'opacitat: quan no hi ha dades, simplement
            no dibuixem. Així el canvas no es pot quedar a mig esvair-se. */
@@ -432,8 +432,16 @@
 
             <!-- Main Grid -->
             <div class="flex-1 overflow-y-auto p-4 relative" id="stations-grid">
-                <div id="loading-spinner" class="absolute inset-0 flex items-center justify-center">
+                <div id="loading-spinner" class="absolute inset-0 flex flex-col items-center justify-center gap-4 z-10">
                     <svg class="animate-spin h-8 w-8 text-[#ffd600]" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <div class="w-56 max-w-[70%] flex flex-col gap-2">
+                        <div class="flex justify-between text-[11px] text-white/50">
+                            <span id="load-label">…</span><span id="load-detail"></span>
+                        </div>
+                        <div class="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                            <div id="load-bar" class="h-full rounded-full bg-gradient-to-r from-[#ffd600] to-[#ff8a4c] w-0 transition-[width] duration-200 ease-out"></div>
+                        </div>
+                    </div>
                 </div>
                 <div id="stations-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 hidden"></div>
             </div>
@@ -579,6 +587,20 @@
             pt: { insecure: 'Esta estação não pode tocar aqui', openTab: 'Abrir numa aba', openTip: 'Abre numa aba separada, onde funciona.', ownStation: 'Própria', addOk: 'Estação adicionada', addMissing: 'Falta o nome ou a URL', addBadUrl: 'A URL deve começar por http:// ou https://', addBtn: 'Adicionar', addName: 'Nome', addUrl: 'https://... (URL do stream)' },
             ar: { insecure: 'لا يمكن تشغيل هذه المحطة هنا', openTab: 'فتح في تبويب', openTip: 'تُفتح في تبويب منفصل حيث تعمل.', ownStation: 'خاصة', addOk: 'تمت إضافة المحطة', addMissing: 'الاسم أو الرابط ناقص', addBadUrl: 'يجب أن يبدأ الرابط بـ http:// أو https://', addBtn: 'إضافة', addName: 'الاسم', addUrl: 'https://... (رابط البث)' }
         };
+        const LOADING_TEXT = {
+            es: { downloading: 'Descargando emisoras…', checking: 'Buscando novedades…' },
+            ca: { downloading: 'Descarregant emissores…', checking: 'Buscant novetats…' },
+            en: { downloading: 'Downloading stations…', checking: 'Checking for updates…' },
+            pt: { downloading: 'Baixando estações…', checking: 'Procurando novidades…' },
+            fr: { downloading: 'Téléchargement des stations…', checking: 'Recherche de nouveautés…' },
+            it: { downloading: 'Scaricamento stazioni…', checking: 'Verifica novità…' },
+            de: { downloading: 'Sender werden geladen…', checking: 'Suche nach Neuheiten…' },
+            zh: { downloading: '正在下载电台…', checking: '正在检查更新…' },
+            ja: { downloading: '局をダウンロード中…', checking: '更新を確認中…' },
+            ar: { downloading: 'جارٍ تنزيل المحطات…', checking: 'جارٍ البحث عن تحديثات…' }
+        };
+        Object.keys(LOADING_TEXT).forEach(k => Object.assign(i18nExtra[k], LOADING_TEXT[k]));
+
         // Nom curt de la capçalera, al costat del dònut.
         const SHORT_TITLE = { es: 'Radio', ca: 'Ràdio', en: 'Radio', pt: 'Rádio', fr: 'Radio', it: 'Radio', de: 'Radio', zh: '广播', ja: 'ラジオ', ar: 'راديو' };
         Object.keys(SHORT_TITLE).forEach(k => i18nExtra[k].short = SHORT_TITLE[k]);
@@ -1022,31 +1044,168 @@
         // ============================================================
         // API Radio Browser
         // ============================================================
-        async function fetchStations(countryOrRegion) {
-            byId('loading-spinner').style.display = 'flex';
-            byId('stations-list').classList.add('hidden');
 
-            const url = countryOrRegion === 'Catalunya'
-                ? 'https://de1.api.radio-browser.info/json/stations/search?language=catalan&limit=300&hidebroken=true'
-                // Sense límit: les volem totes. Al llistat es pinten per
-                // tandes, així que tenir-ne milers a la memòria no fa mal.
-                : `https://de1.api.radio-browser.info/json/stations/search?countrycode=${countryOrRegion}`
-                  + `&limit=100000&hidebroken=true&order=clickcount&reverse=true`;
+        // ============================================================
+        // MAGATZEM AL DISPOSITIU
+        //
+        // Baixar-se els Estats Units són 8,6 MB. No té sentit repetir-ho cada
+        // dia: ho desem a IndexedDB (localStorage es queda curt) i, en tornar,
+        // preguntem només si aquell país ha canviat. Aquesta consulta ocupa
+        // 1,5 kB perquè demana una sola emissora, la modificada més fa poc.
+        // ============================================================
+        const DB_NAME = 'radio-cache', DB_STORE = 'regions';
+        let dbPromise = null;
 
+        function db() {
+            if (!dbPromise) dbPromise = new Promise((res, rej) => {
+                const req = indexedDB.open(DB_NAME, 1);
+                req.onupgradeneeded = () => req.result.createObjectStore(DB_STORE);
+                req.onsuccess = () => res(req.result);
+                req.onerror = () => rej(req.error);
+            }).catch(() => null);
+            return dbPromise;
+        }
+
+        async function cacheGet(region) {
             try {
-                const response = await fetch(url);
-                let data = await response.json();
-                data.sort((a, b) => a.name.trim().localeCompare(b.name.trim(), undefined, { sensitivity: 'base' }));
-                allStations = withCustom(data.filter(s => s.url_resolved), { region: countryOrRegion });
-                renderStations(allStations, true);
-                byId('stations-grid').scrollTop = 0;
-            } catch (error) {
-                console.error("Error cargando emisoras:", error);
-                byId('stations-list').innerHTML = `<div class="col-span-full text-center text-white/50 py-10">${t().connError}</div>`;
+                const d = await db(); if (!d) return null;
+                return await new Promise(res => {
+                    const r = d.transaction(DB_STORE).objectStore(DB_STORE).get(region);
+                    r.onsuccess = () => res(r.result || null);
+                    r.onerror = () => res(null);
+                });
+            } catch (e) { return null; }
+        }
+
+        async function cacheSet(region, value) {
+            try {
+                const d = await db(); if (!d) return;
+                d.transaction(DB_STORE, 'readwrite').objectStore(DB_STORE).put(value, region);
+            } catch (e) {}
+        }
+
+        const API = 'https://de1.api.radio-browser.info/json/stations/search';
+
+        function regionUrl(region) {
+            return region === 'Catalunya'
+                ? API + '?language=catalan&limit=100000&hidebroken=true'
+                : API + '?countrycode=' + region + '&limit=100000&hidebroken=true&order=clickcount&reverse=true';
+        }
+
+        /** Marca de l'últim canvi d'aquella regió. Consulta d'1,5 kB. */
+        async function latestChange(region) {
+            const url = (region === 'Catalunya'
+                ? API + '?language=catalan'
+                : API + '?countrycode=' + region)
+                + '&limit=1&order=lastchangetime&reverse=true&hidebroken=true';
+            try {
+                const d = await (await fetch(url)).json();
+                return (d[0] && (d[0].lastchangetime_iso8601 || d[0].lastchangetime)) || null;
+            } catch (e) { return null; }
+        }
+
+        /** Quantes emissores té cada país, per poder estimar el progrés. */
+        let countryCounts = null;
+        async function expectedBytes(region) {
+            const PER_STATION = 1160;              // mesurat: molt estable
+            if (region === 'Catalunya') return 120 * PER_STATION;
+            try {
+                if (!countryCounts) {
+                    const arr = await (await fetch('https://de1.api.radio-browser.info/json/countrycodes')).json();
+                    countryCounts = {};
+                    arr.forEach(c => { countryCounts[c.name] = c.stationcount; });
+                }
+                return (countryCounts[region] || 800) * PER_STATION;
+            } catch (e) { return 800 * PER_STATION; }
+        }
+
+        function showProgress(label, received, total) {
+            const bar = byId('load-bar'), lab = byId('load-label'), det = byId('load-detail');
+            if (lab) lab.textContent = label;
+            if (!bar) return;
+            if (received == null) { bar.style.width = '15%'; if (det) det.textContent = ''; return; }
+            const pct = total ? Math.min(99, Math.round(received / total * 100)) : 0;
+            bar.style.width = pct + '%';
+            if (det) det.textContent = (received / 1048576).toFixed(1) + ' MB' + (total ? '  ·  ' + pct + '%' : '');
+        }
+
+        /** Descarrega llegint el flux, per poder ensenyar quant en portem. */
+        async function downloadRegion(region) {
+            const total = await expectedBytes(region);
+            const res = await fetch(regionUrl(region));
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            if (!res.body || !res.body.getReader) return res.json();
+
+            const reader = res.body.getReader();
+            const parts = [];
+            let got = 0, lastPaint = 0;
+            for (;;) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                parts.push(value);
+                got += value.length;
+                const now = performance.now();
+                if (now - lastPaint > 80) { lastPaint = now; showProgress(t().downloading, got, total); }
+            }
+            showProgress(t().downloading, got, got);
+            const sencer = new Uint8Array(got);
+            let desp = 0;
+            parts.forEach(p => { sencer.set(p, desp); desp += p.length; });
+            return JSON.parse(new TextDecoder().decode(sencer));
+        }
+
+        function prepare(data, region) {
+            data.sort((a, b) => a.name.trim().localeCompare(b.name.trim(), undefined, { sensitivity: 'base' }));
+            return withCustom(data.filter(s => s.url_resolved), { region });
+        }
+
+        function paint(list) {
+            allStations = list;
+            renderStations(allStations, true);
+            const g = byId('stations-grid');
+            if (g) g.scrollTop = 0;
+        }
+
+        async function fetchStations(region) {
+            const spinner = byId('loading-spinner'), list = byId('stations-list');
+            const cached = await cacheGet(region);
+
+            // Si ja la tenim, es veu a l'instant i les novetats es miren després.
+            if (cached && cached.stations && cached.stations.length) {
+                paint(prepare(cached.stations.slice(), region));
+                spinner.style.display = 'none';
+                list.classList.remove('hidden');
+                refreshIfChanged(region, cached);
+                return;
             }
 
-            byId('loading-spinner').style.display = 'none';
-            byId('stations-list').classList.remove('hidden');
+            spinner.style.display = 'flex';
+            list.classList.add('hidden');
+            showProgress(t().downloading, 0, 1);
+
+            try {
+                const data = await downloadRegion(region);
+                await cacheSet(region, { stations: data, savedAt: Date.now(), lastChange: await latestChange(region) });
+                paint(prepare(data, region));
+            } catch (error) {
+                console.error('Error carregant emissores:', error);
+                list.innerHTML = `<div class="col-span-full text-center text-white/50 py-10">${t().connError}</div>`;
+            }
+
+            spinner.style.display = 'none';
+            list.classList.remove('hidden');
+        }
+
+        /** En segon pla: si la regió ha canviat, la tornem a baixar i la refresquem. */
+        async function refreshIfChanged(region, cached) {
+            const ara = await latestChange(region);
+            if (!ara || ara === cached.lastChange) return;
+            if (byId('country-select').value !== region) return;   // ja n'ha triat una altra
+            try {
+                const data = await downloadRegion(region);
+                await cacheSet(region, { stations: data, savedAt: Date.now(), lastChange: ara });
+                if (byId('country-select').value === region) paint(prepare(data, region));
+            } catch (e) {}
         }
 
         let searchTimeout;
@@ -1356,6 +1515,17 @@
         let vizRAF = null;
         const vizPeaks = {};
 
+        // Cinc maneres de dibuixar el mateix so. Es canvia tocant l'equalitzador.
+        const VIZ_STYLES = ['blocs', 'linia', 'mirall', 'punts', 'ona'];
+        let vizStyle = Math.min(VIZ_STYLES.length - 1, Math.max(0, +(localStorage.getItem('radioViz') || 0)));
+
+        function cycleViz() {
+            vizStyle = (vizStyle + 1) % VIZ_STYLES.length;
+            localStorage.setItem('radioViz', vizStyle);
+            Object.keys(vizPeaks).forEach(k => delete vizPeaks[k]);
+            toast((vizStyle + 1) + ' / ' + VIZ_STYLES.length);
+        }
+
         // Referències i contextos en memòria: buscar-los i demanar el context
         // a cada fotograma costa car quan es fa 60 vegades per segon.
         const vizCache = {};
@@ -1426,59 +1596,155 @@
                 }
                 ctx.clearRect(0, 0, w, h);
 
-                // Equalitzador de blocs: cada columna és una pila de segments
-                // separats, i el color el marca la columna (no l'alçada), fent
-                // un escombrat de to de violeta a cian al llarg de l'espectre.
                 const padX = id === 'viz-gadget' ? 6 : 18;
                 const usableW = Math.max(40, w - padX * 2);
-                const bars = Math.max(32, Math.min(96, Math.floor(usableW / 8)));
-                const gap = id === 'viz-gadget' ? 2 : 3;
-                const bw = (usableW - gap * (bars - 1)) / bars;
-
-                const segGap = 2;
-                const segH = id === 'viz-gadget' ? 3 : 5;
-                const segs = Math.max(3, Math.floor(maxH / (segH + segGap)));
-
-                let peaks = vizPeaks[id];
-                if (!peaks || peaks.length !== bars) peaks = vizPeaks[id] = new Float32Array(bars);
+                const petit = id === 'viz-gadget';
 
                 // Els MP3 de ràdio tallen cap als 15 kHz: la part alta de
                 // l'espectre és sempre buida i deixaria mudes les últimes
                 // bandes (justament les blaves). Analitzem només el que sona.
                 const usable = Math.floor(freqData.length * 0.62);
 
-                ctx.shadowBlur = 0;
-                for (let i = 0; i < bars; i++) {
-                    // Repartiment logarítmic: sense això, gairebé tot el dibuix
-                    // serien aguts inaudibles i amb prou feines es mouria res.
-                    const from = Math.floor(Math.pow(i / bars, 1.7) * usable);
-                    const to = Math.max(from + 1, Math.floor(Math.pow((i + 1) / bars, 1.7) * usable));
+                // Repartiment logarítmic: sense això, gairebé tot el dibuix
+                // serien aguts inaudibles i amb prou feines es mouria res.
+                const banda = (i, n) => {
+                    const from = Math.floor(Math.pow(i / n, 1.7) * usable);
+                    const to = Math.max(from + 1, Math.floor(Math.pow((i + 1) / n, 1.7) * usable));
                     let v = 0;
-                    for (let j = from; j < to; j++) v = Math.max(v, freqData[j]);
+                    for (let k = from; k < to; k++) v = Math.max(v, freqData[k]);
+                    return v / 255;
+                };
+                const to = (i, n) => (270 + (i / Math.max(1, n - 1)) * 280) % 360;
 
-                    const level = v / 255;
-                    peaks[i] = Math.max(level, peaks[i] - 0.010);
+                ctx.shadowBlur = 0;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
 
-                    const hue = (270 + (i / Math.max(1, bars - 1)) * 280) % 360;
-                    const x = padX + i * (bw + gap);
-                    const lit = Math.round(level * segs);
+                if (VIZ_STYLES[vizStyle] === 'blocs') {
+                    const bars = Math.max(32, Math.min(96, Math.floor(usableW / 8)));
+                    const gap = petit ? 2 : 3;
+                    const bw = (usableW - gap * (bars - 1)) / bars;
+                    const segGap = 2, segH = petit ? 3 : 5;
+                    const segs = Math.max(3, Math.floor(maxH / (segH + segGap)));
+                    let peaks = vizPeaks[id];
+                    if (!peaks || peaks.length !== bars) peaks = vizPeaks[id] = new Float32Array(bars);
 
-                    ctx.fillStyle = 'hsl(' + hue.toFixed(1) + ', 95%, 55%)';
-                    for (let k = 0; k < lit; k++) {
-                        ctx.fillRect(x, h - (k + 1) * (segH + segGap) + segGap, bw, segH);
+                    for (let i = 0; i < bars; i++) {
+                        const level = banda(i, bars);
+                        peaks[i] = Math.max(level, peaks[i] - 0.010);
+                        const hue = to(i, bars), x = padX + i * (bw + gap);
+                        const lit = Math.round(level * segs);
+                        ctx.fillStyle = 'hsl(' + hue.toFixed(1) + ', 95%, 55%)';
+                        for (let k = 0; k < lit; k++) ctx.fillRect(x, h - (k + 1) * (segH + segGap) + segGap, bw, segH);
+                        const pk = Math.round(peaks[i] * segs);
+                        if (pk > lit) {
+                            ctx.fillStyle = 'hsl(' + hue.toFixed(1) + ', 100%, 78%)';
+                            ctx.fillRect(x, h - (pk + 1) * (segH + segGap) + segGap, bw, segH);
+                        }
                     }
 
-                    // El bloc del pic queda enlaire i va baixant a poc a poc
-                    const pk = Math.round(peaks[i] * segs);
-                    if (pk > lit) {
-                        ctx.fillStyle = 'hsl(' + hue.toFixed(1) + ', 100%, 78%)';
-                        ctx.fillRect(x, h - (pk + 1) * (segH + segGap) + segGap, bw, segH);
+                } else if (VIZ_STYLES[vizStyle] === 'linia') {
+                    // Una sola línia de l'espectre, amb l'àrea de sota omplerta.
+                    const n = Math.max(40, Math.min(140, Math.floor(usableW / 5)));
+                    const pas = usableW / (n - 1);
+                    const punts = [];
+                    for (let i = 0; i < n; i++) punts.push([padX + i * pas, h - 2 - banda(i, n) * maxH]);
+
+                    const grad = ctx.createLinearGradient(padX, 0, padX + usableW, 0);
+                    for (let k = 0; k <= 6; k++) grad.addColorStop(k / 6, 'hsl(' + to(k, 7).toFixed(1) + ', 95%, 58%)');
+
+                    ctx.beginPath();
+                    ctx.moveTo(punts[0][0], h);
+                    punts.forEach(([x, y], k) => {
+                        if (k === 0) { ctx.lineTo(x, y); return; }
+                        const [px, py] = punts[k - 1];
+                        ctx.quadraticCurveTo(px, py, (px + x) / 2, (py + y) / 2);
+                    });
+                    ctx.lineTo(punts[n - 1][0], h);
+                    ctx.closePath();
+                    ctx.globalAlpha = 0.22;
+                    ctx.fillStyle = grad;
+                    ctx.fill();
+
+                    ctx.globalAlpha = 1;
+                    ctx.beginPath();
+                    punts.forEach(([x, y], k) => {
+                        if (k === 0) { ctx.moveTo(x, y); return; }
+                        const [px, py] = punts[k - 1];
+                        ctx.quadraticCurveTo(px, py, (px + x) / 2, (py + y) / 2);
+                    });
+                    ctx.strokeStyle = grad;
+                    ctx.lineWidth = petit ? 1.6 : 2.4;
+                    ctx.shadowColor = 'rgba(120, 190, 255, .5)';
+                    ctx.shadowBlur = petit ? 6 : 12;
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+
+                } else if (VIZ_STYLES[vizStyle] === 'mirall') {
+                    // Barres que creixen amunt i avall des del centre.
+                    const bars = Math.max(28, Math.min(90, Math.floor(usableW / 7)));
+                    const gap = 2;
+                    const bw = (usableW - gap * (bars - 1)) / bars;
+                    const cy = h / 2;
+                    for (let i = 0; i < bars; i++) {
+                        const level = banda(i, bars);
+                        const half = Math.max(1, level * (maxH / 2));
+                        ctx.fillStyle = 'hsl(' + to(i, bars).toFixed(1) + ', 95%, 58%)';
+                        ctx.fillRect(padX + i * (bw + gap), cy - half, bw, half * 2);
                     }
+
+                } else if (VIZ_STYLES[vizStyle] === 'punts') {
+                    // Matriu de punts: cada columna s'encén fins al seu nivell.
+                    const cols = Math.max(24, Math.min(70, Math.floor(usableW / 10)));
+                    const gap = 2;
+                    const d = Math.min((usableW - gap * (cols - 1)) / cols, petit ? 4 : 6);
+                    const files = Math.max(3, Math.floor(maxH / (d + gap)));
+                    for (let i = 0; i < cols; i++) {
+                        const level = banda(i, cols);
+                        const lit = Math.round(level * files);
+                        const cx = padX + i * ((usableW - d) / (cols - 1)) + d / 2;
+                        for (let k = 0; k < files; k++) {
+                            const encès = k < lit;
+                            ctx.globalAlpha = encès ? 1 : 0.10;
+                            ctx.fillStyle = 'hsl(' + to(i, cols).toFixed(1) + ', 95%, ' + (encès ? 58 : 70) + '%)';
+                            ctx.beginPath();
+                            ctx.arc(cx, h - (k + 0.5) * (d + gap), d / 2, 0, 6.284);
+                            ctx.fill();
+                        }
+                    }
+                    ctx.globalAlpha = 1;
+
+                } else {
+                    // Oscil·loscopi: la forma d'ona real, no l'espectre.
+                    analyser.getByteTimeDomainData(timeData);
+                    const n = timeData.length;
+                    const pas = usableW / (n - 1);
+                    const cy = h / 2;
+                    const grad = ctx.createLinearGradient(padX, 0, padX + usableW, 0);
+                    for (let k = 0; k <= 6; k++) grad.addColorStop(k / 6, 'hsl(' + to(k, 7).toFixed(1) + ', 95%, 60%)');
+                    // Sense amplificar: amb guany satura de seguida i es
+                    // converteix en una banda de soroll que ja no es mou.
+                    ctx.beginPath();
+                    for (let i = 0; i < n; i++) {
+                        const y = cy + ((timeData[i] - 128) / 128) * (maxH / 2);
+                        i ? ctx.lineTo(padX + i * pas, y) : ctx.moveTo(padX, y);
+                    }
+                    ctx.strokeStyle = grad;
+                    ctx.lineWidth = petit ? 1.5 : 2.2;
+                    ctx.shadowColor = 'rgba(255, 214, 0, .45)';
+                    ctx.shadowBlur = petit ? 6 : 14;
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
                 }
             });
         }
 
         function startViz() { if (!vizRAF) vizRAF = requestAnimationFrame(drawViz); }
+
+        ['viz-main', 'viz-gadget'].forEach(id => {
+            const cv = document.getElementById(id);
+            if (cv) cv.addEventListener('click', cycleViz);
+        });
 
         // ============================================================
         // ESTAT DEL STREAM (connectant / en directe / caigut)
@@ -1557,7 +1823,7 @@
         // sempre. Per això no en reaprofitem cap: en creem un de nou cada
         // vegada que canvia el mode, i el vell es llença.
         // ============================================================
-        let audioCtx = null, analyser = null, freqData = null;
+        let audioCtx = null, analyser = null, freqData = null, timeData = null;
 
         function useAudioMode(wantCors) {
             if (audioCors === wantCors && audio.src !== '') return;
@@ -1581,6 +1847,7 @@
                     analyser.fftSize = 1024;
                     analyser.smoothingTimeConstant = 0.75;
                     freqData = new Uint8Array(analyser.frequencyBinCount);
+                    timeData = new Uint8Array(analyser.fftSize);
                     analyser.connect(audioCtx.destination);
                 }
                 audioCtx.createMediaElementSource(audio).connect(analyser);
