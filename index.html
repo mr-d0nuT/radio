@@ -909,7 +909,7 @@
             const mine = q
                 ? customStations.filter(s => s.name.toLowerCase().includes(q))
                 : customStations.filter(s => s.own || region === 'Catalunya');
-            return [...mine, ...list].sort((a, b) =>
+            return senseDuplicats([...mine, ...list]).sort((a, b) =>
                 a.name.trim().localeCompare(b.name.trim(), undefined, { sensitivity: 'base' }));
         }
 
@@ -2043,11 +2043,54 @@
             list.classList.remove('hidden');
         }
 
+
+        /** Nom normalitzat: sense accents, ni majúscules, ni espais de sobra. */
+        function clauNom(x) {
+            return (x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                            .toLowerCase().replace(/\s+/g, ' ').trim();
+        }
+
+        /**
+         * Radio Browser té la mateixa emissora repetida sovint: mateix stream
+         * amb dues fitxes, o el mateix nom dues vegades. Dues passades
+         * encadenades (primer per stream, després per nom) garanteixen que en
+         * queda una de sola; una sola passada amb dues claus no ho aconsegueix,
+         * perquè una fitxa pot guanyar per URL i una altra pel nom.
+         * Ens quedem amb la millor: les pròpies manen, després les https, i
+         * a igualtat, la més escoltada.
+         */
+        function senseDuplicats(llista) {
+            const punts = x => (x.custom ? 1e12 : 0)
+                             + (/^https:/i.test(x.url_resolved || '') ? 1e6 : 0)
+                             + (x.clickcount || 0);
+            const passada = (arr, clau) => {
+                const millor = new Map();
+                arr.forEach((s, i) => {
+                    const k = clau(s) || 'sensa-clau-' + i;
+                    const ja = millor.get(k);
+                    if (!ja || punts(s) > punts(ja)) millor.set(k, s);
+                });
+                return [...millor.values()];
+            };
+            return passada(passada(llista, s => {
+                const u = (s.url_resolved || '').replace(/^https?:/, '').replace(/\/+$/, '');
+                return u && 'u:' + u;
+            }), s => 'n:' + clauNom(s.name));
+        }
+
         /** Repintar el llistat d'emissores només quan és el que es veu:
             si no, esborra la llista d'episodis que hi ha a sota. */
         const veientEmissores = () => mode === 'radio' && !currentPodcast;
 
         function paintPodcasts(items) {
+            // El mateix podcast pot sortir dues vegades amb fitxes diferents.
+            const vistos = {};
+            items = items.filter(p => {
+                const k = clauNom(p.name) + '|' + clauNom(p.artist);
+                if (vistos[k]) return false;
+                vistos[k] = 1;
+                return true;
+            });
             // Ordre alfabètic, com les emissores. El rànquing d'Apple ve per
             // popularitat, però costa trobar-hi res.
             items = items.slice().sort((a, b) =>
