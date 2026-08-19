@@ -2264,6 +2264,7 @@
                 if (senyal) mseSessio.viu = ara;
                 else if (!mseSessio.viu) mseSessio.viu = ara;
                 else if (ara - mseSessio.viu > 6000) {
+                    mseMotiu = 'sense senyal amb ' + (mseSessio.trossos || 0) + ' trossos servits';
                     aturaMSE();
                     loadCandidate();
                 }
@@ -2996,7 +2997,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-19l';
+        const VERSIO = '2026-08-19m';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3594,10 +3595,10 @@
                   + 'context    ' + (audioCtx ? audioCtx.state : '—') + '\n'
                   + 'senyal max ' + mx + '   reparacions ' + vizIntents + '\n'
                   + 'tira       ' + (vizLive() ? 'viva' : 'plegada') + '\n'
-                  + 'via MSE    ' + (mseSessio ? ('sí, ' + (mseSessio.trossos || 0) + ' trossos'
+                  + 'via MSE    ' + (mseSessio ? ('EN MARXA, ' + (mseSessio.trossos || 0) + ' trossos'
                                      + (mseSessio.error ? ' ERROR:' + mseSessio.error : '')
                                      + ' ms:' + mseSessio.ms.readyState)
-                                   : (mseProvats.size ? 'provada i fora' : 'no')) + '\n'
+                                   : (mseMotiu || 'encara no')) + '\n'
                   + 'captura    ' + (typeof audio.captureStream === 'function' ? 'sí'
                                    : (typeof audio.mozCaptureStream === 'function' ? 'moz' : 'NO')) + '\n'
                   + 'MSE mp3    ' + (window.MediaSource && MediaSource.isTypeSupported
@@ -3628,7 +3629,7 @@
         // Només s'hi entra quan s'ha comprovat que l'analitzador no rep res.
         // Als navegadors on el camí normal funciona, aquest codi no s'executa.
         // ============================================================
-        let mseSessio = null;
+        let mseSessio = null, mseMotiu = '';
         const mseProvats = new Set();
 
         const potMSE = () => !!(window.MediaSource && MediaSource.isTypeSupported
@@ -3651,14 +3652,18 @@
 
             const quiEra = currentStation;
             let res;
-            try { res = await fetch(url); } catch (e) { return; }
+            mseMotiu = 'demanant';
+            try { res = await fetch(url); }
+            catch (e) { mseMotiu = 'fetch KO: ' + (e && e.name || e); return; }
             const tipus = (res.headers.get('content-type') || '').toLowerCase();
+            mseMotiu = 'tipus ' + (tipus || 'buit');
             // Només MP3: és el que el MediaSource admet arreu on ho hem mirat.
             if (tipus.indexOf('mpeg') < 0 && tipus.indexOf('mp3') < 0) {
                 try { res.body.cancel(); } catch (e) {}
+                mseMotiu = 'no és mp3: ' + (tipus || 'sense tipus');
                 return;
             }
-            if (currentStation !== quiEra) { try { res.body.cancel(); } catch (e) {} return; }
+            if (currentStation !== quiEra) { try { res.body.cancel(); } catch (e) {} mseMotiu = 'canvi emissora'; return; }
 
             try {
                 const ms = new MediaSource();
@@ -3669,8 +3674,10 @@
                 audio.src = URL.createObjectURL(ms);
                 audio.volume = vol; audio.muted = mut;
 
+                mseMotiu = 'esperant sourceopen';
                 await new Promise(r => ms.addEventListener('sourceopen', r, { once: true }));
-                if (s.aturat || currentStation !== quiEra) { aturaMSE(); return; }
+                if (s.aturat || currentStation !== quiEra) { mseMotiu = 'avortada'; aturaMSE(); return; }
+                mseMotiu = 'obert';
 
                 s.sb = ms.addSourceBuffer('audio/mpeg');
                 s.sb.addEventListener('error', () => { s.error = 'sb'; });
@@ -3681,6 +3688,7 @@
                 try { s.sb.mode = 'sequence'; } catch (e) {}
                 bombaMSE(s);
             } catch (e) {
+                mseMotiu = 'excepció: ' + (e && e.name || e);
                 aturaMSE();
                 // Si el rodeig falla, tornem al camí de sempre.
                 if (currentStation === quiEra) loadCandidate();
