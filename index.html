@@ -2941,7 +2941,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-19c';
+        const VERSIO = '2026-08-19d';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3522,6 +3522,12 @@
                   + 'context    ' + (audioCtx ? audioCtx.state : '—') + '\n'
                   + 'senyal max ' + mx + '   reparacions ' + vizIntents + '\n'
                   + 'tira       ' + (vizLive() ? 'viva' : 'plegada') + '\n'
+                  + 'captura    ' + (typeof audio.captureStream === 'function' ? 'sí'
+                                   : (typeof audio.mozCaptureStream === 'function' ? 'moz' : 'NO')) + '\n'
+                  + 'MSE mp3    ' + (window.MediaSource && MediaSource.isTypeSupported
+                                   ? MediaSource.isTypeSupported('audio/mpeg') : 'sense MSE') + '\n'
+                  + 'MSE aac    ' + (window.MediaSource && MediaSource.isTypeSupported
+                                   ? MediaSource.isTypeSupported('audio/mp4; codecs="mp4a.40.2"') : '—') + '\n'
                   + 'versió     ' + VERSIO;
             }, 500);
         }
