@@ -2740,7 +2740,42 @@
         let ultimCanal = null;
 
         /** Llegeix un canal RSS i en treu els episodis. */
+        /**
+         * Spreaker no deixa que el navegador llegeixi els seus canals RSS: no
+         * hi posa capçaleres CORS i el navegador els bloqueja. La seva API sí
+         * que les hi posa, i dona els mateixos episodis. Quan reconeixem un
+         * canal seu, hi anem directament.
+         */
+        function idSpreaker(url) {
+            const m = /spreaker\.com\/show\/(\d+)/i.exec(url || '');
+            return m ? m[1] : null;
+        }
+
+        async function llegirSpreaker(idShow) {
+            const d = await (await fetch('https://api.spreaker.com/v2/shows/' + idShow
+                       + '/episodes?limit=100')).json();
+            const items = (d.response && d.response.items) || [];
+            ultimCanal = { titol: '', autor: '', imatge: (items[0] || {}).image_original_url || '' };
+            return items.map(e => ({
+                title: e.title || '',
+                // Safari no sap llegir "2026-05-13 17:42:10": vol la T i la zona.
+                date: e.published_at ? e.published_at.replace(' ', 'T') + 'Z' : '',
+                dur: e.duration ? durHms(Math.round(e.duration / 1000)) : '',
+                url: e.playback_url || e.download_url || ''
+            })).filter(e => e.url);
+        }
+
+        /** Segons a h:mm:ss, com els que porten els canals normals. */
+        function durHms(t) {
+            const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sg = t % 60;
+            const dos = n => (n < 10 ? '0' : '') + n;
+            return (h ? h + ':' + dos(m) : m) + ':' + dos(sg);
+        }
+
         async function llegirCanal(url) {
+            const spk = idSpreaker(url);
+            if (spk) return llegirSpreaker(spk);
+
             // Compte: response.text() sempre descodifica en UTF-8, encara que
             // el canal digui una altra cosa. Molts feeds van en ISO-8859-1 i
             // els accents sortirien com a rombes. Els llegim en cru i els
