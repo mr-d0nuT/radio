@@ -3480,6 +3480,41 @@
         ['pointerdown', 'keydown', 'touchstart'].forEach(ev =>
             document.addEventListener(ev, despertaContext, { passive: true }));
 
+        // ============================================================
+        // DIAGNÒSTIC
+        // Amb ?diag=1 a l'adreça, un rètol diu en quin estat es troba
+        // l'analitzador. Serveix per saber què passa en un navegador que no
+        // tenim a mà, en comptes d'endevinar-ho.
+        // ============================================================
+        if (/[?&]diag=1/.test(location.search)) {
+            const r = document.createElement('div');
+            r.style.cssText = 'position:fixed;left:8px;top:8px;z-index:99999;max-width:92vw;'
+                + 'padding:8px 10px;border-radius:8px;background:rgba(0,0,0,.88);color:#7CFC98;'
+                + 'font:11px/1.45 ui-monospace,Menlo,monospace;white-space:pre;pointer-events:none;'
+                + 'border:1px solid rgba(124,252,152,.35)';
+            document.addEventListener('DOMContentLoaded', () => document.body.appendChild(r));
+            setInterval(() => {
+                let mx = 0;
+                if (analyser && freqData) {
+                    try {
+                        analyser.getByteFrequencyData(freqData);
+                        for (let i = 0; i < freqData.length; i++) if (freqData[i] > mx) mx = freqData[i];
+                    } catch (e) { mx = -1; }
+                }
+                let host = '';
+                try { host = new URL(audio.currentSrc || 'about:blank').host; } catch (e) {}
+                r.textContent =
+                    'emissora   ' + ((currentStation && currentStation.name) || '—') + '\n'
+                  + 'servidor   ' + (host || '—') + '\n'
+                  + 'sona       ' + isPlaying + '\n'
+                  + 'mode CORS  ' + audioCors + '\n'
+                  + 'analitzador' + (analyser ? ' sí' : ' NO') + '\n'
+                  + 'context    ' + (audioCtx ? audioCtx.state : '—') + '\n'
+                  + 'senyal max ' + mx + '   reparacions ' + vizIntents + '\n'
+                  + 'tira       ' + (vizLive() ? 'viva' : 'plegada');
+            }, 500);
+        }
+
         /** Si no arriba senyal, val la pena tornar-ho a lligar tot abans de plegar. */
         function reparaAnalitzador() {
             despertaContext();
