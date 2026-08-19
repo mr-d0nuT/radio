@@ -2996,7 +2996,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-19k';
+        const VERSIO = '2026-08-19l';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3594,7 +3594,10 @@
                   + 'context    ' + (audioCtx ? audioCtx.state : '—') + '\n'
                   + 'senyal max ' + mx + '   reparacions ' + vizIntents + '\n'
                   + 'tira       ' + (vizLive() ? 'viva' : 'plegada') + '\n'
-                  + 'via MSE    ' + (mseSessio ? 'sí' : 'no') + '\n'
+                  + 'via MSE    ' + (mseSessio ? ('sí, ' + (mseSessio.trossos || 0) + ' trossos'
+                                     + (mseSessio.error ? ' ERROR:' + mseSessio.error : '')
+                                     + ' ms:' + mseSessio.ms.readyState)
+                                   : (mseProvats.size ? 'provada i fora' : 'no')) + '\n'
                   + 'captura    ' + (typeof audio.captureStream === 'function' ? 'sí'
                                    : (typeof audio.mozCaptureStream === 'function' ? 'moz' : 'NO')) + '\n'
                   + 'MSE mp3    ' + (window.MediaSource && MediaSource.isTypeSupported
@@ -3670,6 +3673,8 @@
                 if (s.aturat || currentStation !== quiEra) { aturaMSE(); return; }
 
                 s.sb = ms.addSourceBuffer('audio/mpeg');
+                s.sb.addEventListener('error', () => { s.error = 'sb'; });
+                ms.addEventListener('sourceclose', () => { s.error = s.error || 'tancat'; });
                 // Un directe no porta línia de temps: sense mode seqüencial, el
                 // navegador col·loca cada tros on li sembla, sona un instant i
                 // s'encalla.
@@ -3684,9 +3689,18 @@
 
         /** Va passant el flux al reproductor, i esborra el que ja ha sonat. */
         async function bombaMSE(s) {
+            // Esperar el "updateend" i prou era una trampa: si el navegador
+            // contesta amb un error, aquell avís no arriba mai i el bucle es
+            // quedava clavat per sempre. D'aquí que sonés un segon i emmudís.
+            // Ara qualsevol de les tres coses el desencalla.
             const lliure = () => new Promise(r => {
                 if (!s.sb || !s.sb.updating) return r();
-                s.sb.addEventListener('updateend', r, { once: true });
+                let fet = false;
+                const acaba = () => { if (fet) return; fet = true; r(); };
+                s.sb.addEventListener('updateend', acaba, { once: true });
+                s.sb.addEventListener('error', () => { s.error = 'sb'; acaba(); }, { once: true });
+                s.sb.addEventListener('abort', acaba, { once: true });
+                setTimeout(acaba, 3000);
             });
             try {
                 while (!s.aturat) {
@@ -3721,18 +3735,7 @@
                     }
                     await lliure();
 
-                    // Si es queda encallat però tenim so per endavant, hi
-                    // saltem: val més perdre un instant que emmudir.
-                    try {
-                        const b = s.sb.buffered;
-                        if (b.length) {
-                            const cap = b.end(b.length - 1);
-                            if (audio.readyState < 3 && cap - audio.currentTime > 1.5) {
-                                audio.currentTime = Math.max(b.start(0), cap - 1);
-                                if (audio.paused) audio.play().catch(() => {});
-                            }
-                        }
-                    } catch (e) {}
+                    if (s.error) break;
                 }
             } catch (e) {}
         }
