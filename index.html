@@ -669,8 +669,11 @@
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
                     </button>
                     <img id="episodes-art" src="" alt="" class="w-9 h-9 rounded-lg object-cover shrink-0 bg-white/5">
-                    <div class="min-w-0">
-                        <div id="episodes-title" class="text-sm font-bold text-white truncate"></div>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-baseline gap-2 min-w-0">
+                            <span id="episodes-title" class="text-sm font-bold text-white truncate shrink-0 max-w-[45%]"></span>
+                            <span id="episodes-desc" class="text-[11px] text-white/45 truncate min-w-0"></span>
+                        </div>
                         <div id="episodes-count" class="text-[11px] text-white/40"></div>
                     </div>
                 </div>
@@ -2134,14 +2137,33 @@
         let vizWipe = false;
         const vizPeaks = {};
 
-        // Cinc maneres de dibuixar el mateix so. Es canvia tocant l'equalitzador.
-        const VIZ_STYLES = ['blocs', 'linia', 'mirall', 'ventall', 'ona'];
+        // Set maneres de dibuixar el mateix so. Es canvia tocant l'equalitzador.
+        const VIZ_STYLES = ['blocs', 'linia', 'mirall', 'ventall', 'ona',
+                            'bombolles', 'tunel'];
+        // Estat propi dels estils que recorden el que ha passat abans.
+        const vizBombolles = {}, vizAnelles = {}, vizSostres = {};
+
+        /**
+         * Cada banda mesurada contra el seu propi màxim recent. Els greus van
+         * sempre molt més forts que els aguts: comparant-les entre elles, el
+         * verd i el blau no sortien gairebé mai. Comparant cada una amb ella
+         * mateixa, totes tenen el seu moment.
+         */
+        function relativa(id, i, n, v) {
+            let st = vizSostres[id];
+            if (!st || st.length !== n) st = vizSostres[id] = new Float32Array(n);
+            st[i] = v > st[i] ? v : st[i] * 0.997;
+            return Math.min(1, v / Math.max(0.05, st[i]));
+        }
         let vizStyle = Math.min(VIZ_STYLES.length - 1, Math.max(0, +(localStorage.getItem('radioViz') || 0)));
 
         function cycleViz() {
             vizStyle = (vizStyle + 1) % VIZ_STYLES.length;
             localStorage.setItem('radioViz', vizStyle);
             Object.keys(vizPeaks).forEach(k => delete vizPeaks[k]);
+            Object.keys(vizBombolles).forEach(k => delete vizBombolles[k]);
+            Object.keys(vizAnelles).forEach(k => delete vizAnelles[k]);
+            Object.keys(vizSostres).forEach(k => delete vizSostres[k]);
             vizWipe = true;
             toast((vizStyle + 1) + ' / ' + VIZ_STYLES.length);
         }
@@ -2381,6 +2403,101 @@
                         ctx.stroke();
                     }
                     ctx.shadowBlur = 0;
+
+                } else if (VIZ_STYLES[vizStyle] === 'bombolles') {
+                    // Cada cop de greu deixa anar bombolles que pugen i es
+                    // desfan. El color el posa la banda que les ha empès.
+                    let bs = vizBombolles[id];
+                    if (!bs) bs = vizBombolles[id] = [];
+
+                    const n = petit ? 12 : 26;
+                    const sostre = petit ? 26 : 64;
+                    for (let i = 0; i < n && bs.length < sostre; i++) {
+                        const v = relativa(id, i, n, banda(i, n));
+                        if (v < 0.5 || Math.random() > (v - 0.4) * 0.55) continue;
+                        bs.push({
+                            x: padX + (i + 0.5) * (usableW / n) + (Math.random() - 0.5) * 7,
+                            y: h + 4,
+                            r: (petit ? 1.4 : 2.6) + v * (petit ? 3 : 6.5),
+                            vy: (petit ? 0.5 : 0.85) + v * (petit ? 1 : 2),
+                            to: to(i, n),
+                            vida: 1
+                        });
+                    }
+
+                    for (let k = bs.length - 1; k >= 0; k--) {
+                        const b = bs[k];
+                        b.y -= b.vy;
+                        b.x += Math.sin((b.y + k * 30) / 22) * 0.45;
+                        b.vida -= 0.012;
+                        if (b.vida <= 0 || b.y + b.r < -4) { bs.splice(k, 1); continue; }
+
+                        ctx.globalAlpha = Math.max(0, b.vida) * 0.85;
+                        const col = 'hsl(' + b.to.toFixed(1) + ', 98%, 62%)';
+                        ctx.fillStyle = col;
+                        ctx.shadowColor = col;
+                        ctx.shadowBlur = petit ? 4 : 9;
+                        ctx.beginPath();
+                        ctx.arc(b.x, b.y, b.r * (0.6 + b.vida * 0.4), 0, Math.PI * 2);
+                        ctx.fill();
+                        // el reflex que les fa semblar bombolles de debò
+                        ctx.shadowBlur = 0;
+                        ctx.globalAlpha = Math.max(0, b.vida) * 0.5;
+                        ctx.fillStyle = '#fff';
+                        ctx.beginPath();
+                        ctx.arc(b.x - b.r * 0.3, b.y - b.r * 0.35, Math.max(0.5, b.r * 0.22), 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    ctx.globalAlpha = 1;
+                    ctx.shadowBlur = 0;
+
+                } else if (VIZ_STYLES[vizStyle] === 'tunel') {
+                    // Un túnel: cada cop de bombo deixa anar un anell que
+                    // s'eixampla fins a sortir de la tira. Com mirar la música
+                    // de cara.
+                    let an = vizAnelles[id];
+                    if (!an) an = vizAnelles[id] = { llista: [], previ: 0 };
+
+                    // Un anell nou quan els greus pugen de cop, no cada frame.
+                    if (bass > 0.28 && bass > an.previ + 0.05 && an.llista.length < 22) {
+                        // El color surt de quina banda mana en aquest moment, no
+                        // d'un tram fix: així recorre tota la paleta en comptes
+                        // de quedar-se sempre entre el groc i el verd.
+                        const nb = 22;
+                        let mana = 0, top = -1;
+                        for (let i = 0; i < nb; i++) {
+                            const v = relativa(id, i, nb, banda(i, nb));
+                            if (v > top) { top = v; mana = i; }
+                        }
+                        an.llista.push({
+                            r: petit ? 2 : 4, força: bass,
+                            to: (to(mana, nb) + an.llista.length * 9) % 360
+                        });
+                    }
+                    an.previ = bass;
+
+                    const cxp = w / 2, cyp = h / 2;
+                    const maxR = Math.max(w, h) * 0.62;
+                    ctx.lineCap = 'butt';
+                    for (let k = an.llista.length - 1; k >= 0; k--) {
+                        const a = an.llista[k];
+                        a.r += (petit ? 1.6 : 3) + a.força * (petit ? 1.4 : 2.6);
+                        if (a.r > maxR) { an.llista.splice(k, 1); continue; }
+
+                        const t = a.r / maxR;
+                        ctx.globalAlpha = Math.max(0, (1 - t) * (0.35 + a.força * 0.6));
+                        const col = 'hsl(' + a.to.toFixed(1) + ', 98%, ' + (58 - t * 14).toFixed(0) + '%)';
+                        ctx.strokeStyle = col;
+                        ctx.shadowColor = col;
+                        ctx.shadowBlur = petit ? 4 : 10;
+                        ctx.lineWidth = Math.max(1, (petit ? 1.6 : 3) * (1 - t) + 0.6);
+                        ctx.beginPath();
+                        ctx.ellipse(cxp, cyp, a.r, a.r * 0.55, 0, 0, Math.PI * 2);
+                        ctx.stroke();
+                    }
+                    ctx.globalAlpha = 1;
+                    ctx.shadowBlur = 0;
+                    ctx.lineCap = 'round';
 
                 } else {
                     // Oscil·loscopi: la forma d'ona real, no l'espectre.
@@ -2739,6 +2856,14 @@
 
         let ultimCanal = null;
 
+        /** Les descripcions venen plenes d'HTML; aquí només volem el text. */
+        function netejaHtml(txt) {
+            if (!txt) return '';
+            const d = document.createElement('div');
+            d.innerHTML = txt;
+            return (d.textContent || '').replace(/\s+/g, ' ').trim();
+        }
+
         /** Llegeix un canal RSS i en treu els episodis. */
         /**
          * Spreaker no deixa que el navegador llegeixi els seus canals RSS: no
@@ -2752,10 +2877,19 @@
         }
 
         async function llegirSpreaker(idShow) {
-            const d = await (await fetch('https://api.spreaker.com/v2/shows/' + idShow
-                       + '/episodes?limit=100')).json();
+            const [d, fitxa] = await Promise.all([
+                (await fetch('https://api.spreaker.com/v2/shows/' + idShow + '/episodes?limit=100')).json(),
+                fetch('https://api.spreaker.com/v2/shows/' + idShow)
+                    .then(r => r.json()).catch(() => null)
+            ]);
             const items = (d.response && d.response.items) || [];
-            ultimCanal = { titol: '', autor: '', imatge: (items[0] || {}).image_original_url || '' };
+            const show = fitxa && fitxa.response && fitxa.response.show;
+            ultimCanal = {
+                titol: (show && show.title) || '',
+                autor: (show && show.author_id) ? '' : '',
+                descripcio: show ? netejaHtml(show.description || '') : '',
+                imatge: (show && show.image_original_url) || (items[0] || {}).image_original_url || ''
+            };
             return items.map(e => ({
                 title: e.title || '',
                 // Safari no sap llegir "2026-05-13 17:42:10": vol la T i la zona.
@@ -2798,7 +2932,10 @@
             if (doc.querySelector('parsererror')) throw new Error('XML il·legible');
             const canal = doc.querySelector('channel');
             const imatge = doc.getElementsByTagNameNS(ITUNES_NS, 'image')[0];
+            const desc = canal ? (canal.querySelector('description')
+                       || doc.getElementsByTagNameNS(ITUNES_NS, 'summary')[0]) : null;
             ultimCanal = {
+                descripcio: desc ? netejaHtml(desc.textContent) : '',
                 titol: canal && canal.querySelector('title') ? canal.querySelector('title').textContent.trim() : '',
                 autor: (doc.getElementsByTagNameNS(ITUNES_NS, 'author')[0] || {}).textContent || '',
                 imatge: imatge ? imatge.getAttribute('href') : ''
@@ -2880,6 +3017,10 @@
                             && eps.some(e => e.url === currentStation.url_resolved);
             art.classList.toggle('vinyl-spin', !!seuSona);
             byId('episodes-title').textContent = pod.name;
+            const desc = byId('episodes-desc');
+            const text = pod.descripcio || (ultimCanal && ultimCanal.descripcio) || '';
+            desc.textContent = text;
+            desc.title = text;
             byId('episodes-count').textContent = eps.length + ' ' + t().episodes;
 
             const list = byId('stations-list');
