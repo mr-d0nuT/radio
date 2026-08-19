@@ -77,6 +77,18 @@
         }
         .offline-badge:hover { background: rgba(239, 68, 68, .38); color: #fff; }
 
+        /* Tornar a l'app: tanca la finestra de fora i porta aquesta al davant. */
+        .btn-tanca {
+            display: inline-flex; align-items: center; gap: 4px;
+            font-size: 10px; font-weight: 800; letter-spacing: .02em;
+            padding: 2px 7px 2px 5px; border-radius: 999px;
+            background: rgba(239, 68, 68, .16); color: #ff8f8f;
+            border: 1px solid rgba(239, 68, 68, .45);
+            transition: background .15s, color .15s, border-color .15s;
+        }
+        .btn-tanca:hover { background: rgba(239, 68, 68, .85); color: #fff; border-color: transparent; }
+        .btn-tanca svg { width: 11px; height: 11px; stroke-width: 3; }
+
         /* Apaguem el contingut, no la targeta sencera: així el distintiu
            vermell conserva tota la seva força i es veu d'un cop d'ull. */
         .station-card.caiguda { cursor: default; background: rgba(0, 0, 0, .55); }
@@ -228,6 +240,25 @@
                          box-shadow: inset 0 2px 5px rgba(0,0,0,.45); }
         .btn-so-play   { background: linear-gradient(180deg, #4ade80 0%, #22c55e 48%, #15803d 100%); }
         .btn-so-pause  { background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 48%, #c2410c 100%); }
+
+        /* El botó gran de sota batega: un halo que s'obre i es tanca, del color
+           que toqui. Es respira, no es sacseja: el botó no es mou de lloc. */
+        @keyframes bategaBoto {
+            0%, 100% { box-shadow: inset 0 1px 0 rgba(255,255,255,.30),
+                                   inset 0 -1px 0 rgba(0,0,0,.40),
+                                   0 6px 14px rgba(0,0,0,.45),
+                                   0 0 0 0 var(--halo); }
+            50%      { box-shadow: inset 0 1px 0 rgba(255,255,255,.30),
+                                   inset 0 -1px 0 rgba(0,0,0,.40),
+                                   0 6px 14px rgba(0,0,0,.45),
+                                   0 0 0 7px transparent; }
+        }
+        #btn-play {
+            --halo: rgba(34, 197, 94, .55);
+            animation: bategaBoto 2.1s ease-in-out infinite;
+        }
+        #btn-play.sona { --halo: rgba(245, 158, 11, .55); animation-duration: 1.5s; }
+        @media (prefers-reduced-motion: reduce) { #btn-play { animation: none; } }
 
         /* El símbol no es canvia de cop: el triangle s'encongeix girant i les
            barres entren al seu lloc. És el que fan els reproductors bons. */
@@ -568,7 +599,8 @@
         <div id="search-row" class="px-6 py-4 flex gap-4 border-b border-white/5 bg-black/20 shrink-0">
             <div class="relative flex-1">
                 <svg class="w-4 h-4 absolute left-3 top-3 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                <input type="text" id="search-input" placeholder="Cercar emissora (ex: Altafulla)..." class="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-10 pr-4 text-sm text-white placeholder-white/40 focus:outline-none focus:border-[#ffd600]/50 transition-colors">
+                <input type="text" id="search-input" placeholder="Cercar emissora (ex: Altafulla)..." class="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-10 pr-9 text-sm text-white placeholder-white/40 focus:outline-none focus:border-[#ffd600]/50 transition-colors">
+                <button id="btn-clear-search" class="hidden absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full text-white/40 hover:text-white hover:bg-white/10 transition-colors" title="Esborrar"></button>
             </div>
             <select id="country-select" class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#ffd600]/50 w-32 shrink-0 cursor-pointer appearance-none">
                 <option value="Catalunya" class="bg-gray-900">Catalunya</option>
@@ -657,6 +689,7 @@
                     <span class="text-xs truncate flex items-center gap-1">
                         <span id="player-subtitle" class="text-[#ffd600] truncate">Milers d'opcions</span>
                         <button id="btn-open-tab" onclick="openStreamInTab()" class="hidden text-[10px] font-bold text-black bg-[#ffd600] hover:bg-yellow-400 rounded px-1.5 py-0.5 ml-1 shrink-0 transition-colors">▶</button>
+                        <button id="btn-close-extern" onclick="tornaAlaApp()" class="hidden btn-tanca ml-1 shrink-0" title="Tancar"></button>
                         <span id="player-eq" class="hidden h-3 flex items-end gap-[1px] ml-1 shrink-0">
                             <span class="eq-bar h-1"></span><span class="eq-bar h-2"></span><span class="eq-bar h-3"></span><span class="eq-bar h-1.5"></span><span class="eq-bar h-2.5"></span>
                         </span>
@@ -731,6 +764,7 @@
                 <span class="text-base font-bold text-white truncate drop-shadow-md" id="gadget-title">Ràdio</span>
                 <span class="text-xs text-[#ffd600] truncate font-medium" id="gadget-subtitle">Cap emissora</span>
                 <button id="btn-open-tab-gadget" onclick="openStreamInTab()" class="hidden text-[10px] font-bold text-black bg-[#ffd600] hover:bg-yellow-400 rounded px-1.5 py-0.5 mt-1 self-start transition-colors">▶</button>
+                <button id="btn-close-extern-gadget" onclick="tornaAlaApp()" class="hidden btn-tanca mt-1 self-start" title="Tancar"></button>
             </div>
             <button id="btn-gadget-fav" class="text-white/25 hover:text-white transition-colors shrink-0 p-1" title="Preferida"></button>
         </div>
@@ -877,6 +911,20 @@
         };
         Object.keys(LOADING_TEXT).forEach(k => Object.assign(i18nExtra[k], LOADING_TEXT[k]));
 
+        const EXTERN_TEXT = {
+            es: { externClose: 'Cerrar', clearSearch: 'Borrar', externOn: 'Sonando en una ventana aparte', externFront: 'Ver ventana', externBlocked: 'El navegador ha bloqueado la ventana. Permítela y vuelve a probar.' },
+            ca: { externClose: 'Tancar', clearSearch: 'Esborrar', externOn: 'Sonant en una finestra a part', externFront: 'Veure finestra', externBlocked: 'El navegador ha bloquejat la finestra. Permet-la i torna-ho a provar.' },
+            en: { externClose: 'Close', clearSearch: 'Clear', externOn: 'Playing in a separate window', externFront: 'Show window', externBlocked: 'The browser blocked the window. Allow it and try again.' },
+            pt: { externClose: 'Fechar', clearSearch: 'Limpar', externOn: 'A tocar numa janela à parte', externFront: 'Ver janela', externBlocked: 'O navegador bloqueou a janela. Permite-a e tenta de novo.' },
+            fr: { externClose: 'Fermer', clearSearch: 'Effacer', externOn: 'En lecture dans une fenêtre à part', externFront: 'Voir la fenêtre', externBlocked: 'Le navigateur a bloqué la fenêtre. Autorisez-la et réessayez.' },
+            it: { externClose: 'Chiudi', clearSearch: 'Cancella', externOn: 'In riproduzione in una finestra a parte', externFront: 'Mostra finestra', externBlocked: 'Il browser ha bloccato la finestra. Consentila e riprova.' },
+            de: { externClose: 'Schließen', clearSearch: 'Löschen', externOn: 'Läuft in einem eigenen Fenster', externFront: 'Fenster zeigen', externBlocked: 'Der Browser hat das Fenster blockiert. Erlaube es und versuche es erneut.' },
+            zh: { externClose: '关闭', clearSearch: '清除', externOn: '正在独立窗口中播放', externFront: '显示窗口', externBlocked: '浏览器拦截了窗口。请允许后重试。' },
+            ja: { externClose: '閉じる', clearSearch: 'クリア', externOn: '別ウィンドウで再生中', externFront: 'ウィンドウを表示', externBlocked: 'ブラウザがウィンドウをブロックしました。許可して再試行してください。' },
+            ar: { externClose: 'إغلاق', clearSearch: 'مسح', externOn: 'قيد التشغيل في نافذة منفصلة', externFront: 'إظهار النافذة', externBlocked: 'حظر المتصفح النافذة. اسمح بها وأعد المحاولة.' }
+        };
+        Object.keys(EXTERN_TEXT).forEach(k => Object.assign(i18nExtra[k], EXTERN_TEXT[k]));
+
         const OFFLINE_TEXT = {
             es: { offlineTip: 'Ahora mismo no responde. Pulsa aquí para volver a probar.' },
             ca: { offlineTip: 'Ara mateix no respon. Clica aquí per tornar-ho a provar.' },
@@ -976,10 +1024,74 @@
             return list.filter((x, i, a) => a.indexOf(x) === i);
         }
 
-        /** Últim recurs: el stream cru en una pestanya pròpia. */
-        function openStreamInTab() {
-            if (currentStation) window.open(currentStation.url_resolved, '_blank');
+        // ============================================================
+        // FINESTRA EXTERNA
+        //
+        // Una emissora que només emet per http no pot sonar dins d'una pàgina
+        // https: el navegador ho prohibeix. La sortida és una finestra a part,
+        // que és del servidor de l'emissora i, per tant, d'un altre origen: no
+        // hi podem posar la nostra pantalla ni llegir-ne el so. El que sí que
+        // podem és fer-la petita, que sempre sigui la mateixa —abans se
+        // n'acumulaven— i manar-la des d'aquí, amb el disc girant i el nom a la
+        // barra de sota, com si sonés a casa.
+        // ============================================================
+        let externa = null, externaSt = null, externaTimer = 0;
+
+        const externaSona = () => !!(externa && !externa.closed);
+
+        function obreExterna() {
+            if (!currentStation) return;
+            // Ja oberta amb la mateixa emissora: només cal posar-la al davant.
+            if (externaSona() && externaSt === currentStation) { mostraExterna(); return; }
+            tancaExterna(true);
+
+            const w = 460, h = 230;
+            const l = Math.max(0, (screen.availWidth || screen.width) - w - 40);
+            const dalt = Math.max(0, (screen.availHeight || screen.height) - h - 80);
+            externa = window.open(currentStation.url_resolved, 'radioExterna',
+                'width=' + w + ',height=' + h + ',left=' + l + ',top=' + dalt +
+                ',menubar=no,toolbar=no,location=no,status=no');
+            // Alguns navegadors bloquegen les finestres amb mida. Abans de
+            // deixar l'usuari sense res, ho tornem a provar com a pestanya.
+            if (!externa) externa = window.open(currentStation.url_resolved, 'radioExterna');
+            if (!externa) { toast(t().externBlocked); return; }
+
+            externaSt = currentStation;
+            mostraExterna();
+            setPlayIcons(true);
+            setLiveIndicators(true);
+            setStatus('extern');
+            if (veientEmissores() && allStations.length) renderStations(allStations);
+
+            clearInterval(externaTimer);
+            externaTimer = setInterval(() => { if (!externaSona()) tancaExterna(); }, 800);
         }
+
+        function mostraExterna() { try { externa.focus(); } catch (e) {} }
+
+        function tancaExterna(silenciosa) {
+            clearInterval(externaTimer); externaTimer = 0;
+            const hiEra = !!externa;
+            if (externaSona()) { try { externa.close(); } catch (e) {} }
+            externa = null; externaSt = null;
+            if (!hiEra || silenciosa) return;
+            setPlayIcons(false);
+            setLiveIndicators(false);
+            setStatus('blocked');
+            if (veientEmissores() && allStations.length) renderStations(allStations);
+        }
+
+        /** Tanca la finestra de fora i porta aquesta al davant. */
+        function tornaAlaApp() {
+            tancaExterna();
+            try { window.focus(); } catch (e) {}
+        }
+
+        /** Sona alguna cosa, aquí o a la finestra de fora. */
+        const sonaAra = () => isPlaying || externaSona();
+
+        // El botó de sempre continua funcionant: ara obre la finestra petita.
+        function openStreamInTab() { obreExterna(); }
 
         // ============================================================
         // EMISSORES PRÒPIES
@@ -1233,6 +1345,10 @@
         // ICONES
         // ============================================================
         const ICON = {
+            creu: c => `<svg class="${c}" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M6 6l12 12M18 6L6 18"/>
+                        </svg>`,
             // Triangle amb les puntes arrodonides, centrat òpticament (el
             // triangle "pesa" a l'esquerra, per això va lleugerament desplaçat).
             play:  s => `<svg class="${s}" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor"
@@ -1615,7 +1731,25 @@
         }
 
         let searchTimeout;
+        // La creu només hi és quan hi ha alguna cosa per esborrar.
+        function pintaCreuCerca() {
+            const b = byId('btn-clear-search'), inp = byId('search-input');
+            if (!b || !inp) return;
+            b.classList.toggle('hidden', !inp.value);
+            b.title = t().clearSearch;
+            if (!b.firstChild) b.innerHTML = ICON.creu('w-3.5 h-3.5 pointer-events-none');
+            b.querySelector('svg').setAttribute('stroke-width', '2.5');
+        }
+
+        document.getElementById('btn-clear-search').addEventListener('click', () => {
+            const inp = byId('search-input');
+            inp.value = '';
+            inp.dispatchEvent(new Event('input', { bubbles: true }));
+            inp.focus();
+        });
+
         document.getElementById('search-input').addEventListener('input', (e) => {
+            pintaCreuCerca();
             clearTimeout(searchTimeout);
             const query = e.target.value.trim().toLowerCase();
             const countryVal = byId('country-select').value;
@@ -1661,6 +1795,7 @@
 
         document.getElementById('country-select').addEventListener('change', (e) => {
             byId('search-input').value = '';
+            pintaCreuCerca();
             closeEpisodes(true);
             paintFlags();
             loadList(e.target.value);
@@ -1709,9 +1844,9 @@
                 const card = document.createElement('div');
                 card.className = `station-card flex items-center p-3 rounded-xl border bg-black/40 cursor-pointer gap-3 ${borderStyle}`;
 
-                const discClass = 'disc font-bold' + (isActive && isPlaying ? ' gira' : '');
+                const discClass = 'disc font-bold' + (isActive && sonaAra() ? ' gira' : '');
                 const logoHtml = station.favicon
-                    ? `<img src="${station.favicon}" loading="lazy" decoding="async" class="w-full h-full object-cover ${isActive && isPlaying ? 'vinyl-spin' : 'rounded-lg'}" onerror="this.outerHTML='<span class=\\'${discClass}\\'>${station.name.charAt(0)}</span>'">`
+                    ? `<img src="${station.favicon}" loading="lazy" decoding="async" class="w-full h-full object-cover ${isActive && sonaAra() ? 'vinyl-spin' : 'rounded-lg'}" onerror="this.outerHTML='<span class=\\'${discClass}\\'>${station.name.charAt(0)}</span>'">`
                     : `<span class="${discClass}">${station.name.charAt(0)}</span>`;
 
                 card.innerHTML = `
@@ -2310,6 +2445,7 @@
             renderFavorites();   // cada mode té les seves preferides
             updateFavIcons();
             byId('search-input').value = '';
+            pintaCreuCerca();
             byId('search-input').placeholder = m === 'podcasts' ? t().searchPod : t().search;
             loadList(byId('country-select').value);
         }
@@ -2795,15 +2931,23 @@
             if (kind === 'loading') { text = t().connecting; color = 'rgba(255,255,255,.5)'; }
             if (kind === 'error')   { text = t().offline;    color = '#f87171'; }
             if (kind === 'blocked') { text = t().insecure;   color = '#f87171'; }
+            if (kind === 'extern')  { text = t().externOn;   color = '#ffd600'; }
 
             if (sub)  { sub.textContent = text;  sub.style.color = color; }
             if (gsub) { gsub.textContent = text; gsub.style.color = color; }
 
-            // El botó de "pestanya nova" només té sentit quan res més ha funcionat.
+            // El botó de la finestra a part només té sentit quan res més ha
+            // funcionat; un cop oberta, serveix per tornar-la a trobar.
             [byId('btn-open-tab'), byId('btn-open-tab-gadget')].forEach(b => {
                 if (!b) return;
-                b.classList.toggle('hidden', kind !== 'blocked');
-                b.textContent = '▶ ' + t().openTab;
+                b.classList.toggle('hidden', kind !== 'blocked' && kind !== 'extern');
+                b.textContent = kind === 'extern' ? '⤢ ' + t().externFront : '▶ ' + t().openTab;
+            });
+            [byId('btn-close-extern'), byId('btn-close-extern-gadget')].forEach(b => {
+                if (!b) return;
+                b.classList.toggle('hidden', kind !== 'extern');
+                b.title = t().externClose;
+                b.innerHTML = ICON.creu('') + '<span>' + t().externClose + '</span>';
             });
         }
 
@@ -2979,6 +3123,7 @@
         }
 
         function playStation(station, autoplay = true) {
+            if (externaSona() && externaSt !== station) tancaExterna(true);
             currentStation = station;
             vizMutDes = 0;
             localStorage.setItem('radioLast', JSON.stringify(station));
@@ -3036,6 +3181,8 @@
 
         function togglePlay() {
             if (!currentStation) return;
+            // Si sona en una finestra a part, aturar vol dir tancar-la.
+            if (externaSona()) { tancaExterna(); return; }
             // Si tota la cadena va fallar, val la pena tornar-la a provar sencera.
             if (chainFailed) { playStation(currentStation, true); return; }
             if (audio.paused) { setStatus('loading'); audio.play().catch(() => setStatus('error')); }
