@@ -241,23 +241,32 @@
         .btn-so-play   { background: linear-gradient(180deg, #4ade80 0%, #22c55e 48%, #15803d 100%); }
         .btn-so-pause  { background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 48%, #c2410c 100%); }
 
-        /* El botó gran de sota batega: un halo que s'obre i es tanca, del color
-           que toqui. Es respira, no es sacseja: el botó no es mou de lloc. */
-        @keyframes bategaBoto {
+        /* El botó gran de sota batega: respira una mica i porta una aura del
+           seu mateix color, que s'obre i es tanca amb ell. El primer intent
+           movia una ombra que quedava invisible als dos extrems del cicle. */
+        @keyframes respiraBoto {
+            0%, 100% { transform: scale(1); }
+            50%      { transform: scale(1.06); }
+        }
+        @keyframes auraBoto {
             0%, 100% { box-shadow: inset 0 1px 0 rgba(255,255,255,.30),
                                    inset 0 -1px 0 rgba(0,0,0,.40),
                                    0 6px 14px rgba(0,0,0,.45),
-                                   0 0 0 0 var(--halo); }
+                                   0 0 9px 1px var(--aura); }
             50%      { box-shadow: inset 0 1px 0 rgba(255,255,255,.30),
                                    inset 0 -1px 0 rgba(0,0,0,.40),
                                    0 6px 14px rgba(0,0,0,.45),
-                                   0 0 0 7px transparent; }
+                                   0 0 26px 7px var(--aura); }
         }
         #btn-play {
-            --halo: rgba(34, 197, 94, .55);
-            animation: bategaBoto 2.1s ease-in-out infinite;
+            --aura: rgba(34, 197, 94, .85);
+            animation: respiraBoto 2.1s ease-in-out infinite,
+                       auraBoto    2.1s ease-in-out infinite;
         }
-        #btn-play.sona { --halo: rgba(245, 158, 11, .55); animation-duration: 1.5s; }
+        #btn-play.sona {
+            --aura: rgba(245, 158, 11, .9);
+            animation-duration: 1.45s, 1.45s;
+        }
         @media (prefers-reduced-motion: reduce) { #btn-play { animation: none; } }
 
         /* El símbol no es canvia de cop: el triangle s'encongeix girant i les
@@ -2158,7 +2167,7 @@
 
         let lastFrame = 0, lastBass = -1;
 
-        let vizMutDes = 0;   // des de quan l'analitzador no rep res
+        let vizMutDes = 0, vizIntents = 0;   // des de quan no arriba res, i quantes reparacions duem
 
         function drawViz(now) {
             vizRAF = requestAnimationFrame(drawViz);
@@ -2173,15 +2182,21 @@
             // l'analitzador no hi arriba res, i abans això deixava una franja
             // negra i buida a sota del llistat. Si fa tres segons que no hi ha
             // senyal, la pleguem; si torna, torna la tira.
+            const ara = now || Date.now();
             const base = vizLive();
             if (base) {
                 analyser.getByteFrequencyData(freqData);
                 let suma = 0;
                 for (let i = 0; i < freqData.length; i += 8) suma += freqData[i];
-                if (suma > 0) vizMutDes = 0;
-                else if (!vizMutDes) vizMutDes = now || Date.now();
+                if (suma > 0) { vizMutDes = 0; vizIntents = 0; }
+                else if (!vizMutDes) vizMutDes = ara;
+                else if (ara - vizMutDes > 2000 && vizIntents < 2) {
+                    vizIntents++; vizMutDes = ara; reparaAnalitzador();
+                }
             }
-            const live = base && !(vizMutDes && (now || Date.now()) - vizMutDes > 3000);
+            // Només pleguem la tira quan ja hem intentat adobar-ho i tot i així
+            // no arriba res: així no deixem mai una franja negra i buida.
+            const live = base && !(vizMutDes && ara - vizMutDes > 2000 && vizIntents >= 2);
 
             const targets = vizTargets();
 
@@ -3007,7 +3022,11 @@
         let audioCtx = null, analyser = null, freqData = null, timeData = null;
 
         function useAudioMode(wantCors) {
-            if (audioCors === wantCors && audio.src !== '') return;
+            if (audioCors === wantCors && audio.src !== '') {
+                // Mateix mode, però potser hem perdut l'analitzador pel camí.
+                if (wantCors && !analyser) connectAnalyser();
+                return;
+            }
             const wasVol = audio.volume, wasMuted = audio.muted;
             try { audio.pause(); audio.removeAttribute('src'); audio.load(); } catch (e) {}
 
@@ -3022,10 +3041,19 @@
             if (wantCors) connectAnalyser();
         }
 
+        // Un element d'àudio només admet una font per context: si la demanem
+        // dues vegades, l'API llança i ens quedàvem sense analitzador per a
+        // tota la sessió. La desem i la reaprofitem.
+        const fonts = new WeakMap();
+
         function connectAnalyser() {
             try {
-                if (!audioCtx) {
-                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+                // L'analitzador es crea a part del context. Abans anaven junts,
+                // i n'hi havia prou amb una errada perquè no es tornés a crear
+                // mai més: el context ja existia i el bloc sencer se saltava.
+                if (!analyser) {
                     analyser = audioCtx.createAnalyser();
                     analyser.fftSize = 1024;
                     analyser.smoothingTimeConstant = 0.75;
@@ -3033,12 +3061,27 @@
                     timeData = new Uint8Array(analyser.fftSize);
                     analyser.connect(audioCtx.destination);
                 }
-                audioCtx.createMediaElementSource(audio).connect(analyser);
-                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                if (!fonts.has(audio)) fonts.set(audio, audioCtx.createMediaElementSource(audio));
+                fonts.get(audio).connect(analyser);
+                despertaContext();
             } catch (e) {
                 console.warn('Analitzador no disponible:', e);
                 analyser = null;
             }
+        }
+
+        /** El navegador té els contextos adormits fins que l'usuari toca res. */
+        function despertaContext() {
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+        }
+        ['pointerdown', 'keydown', 'touchstart'].forEach(ev =>
+            document.addEventListener(ev, despertaContext, { passive: true }));
+
+        /** Si no arriba senyal, val la pena tornar-ho a lligar tot abans de plegar. */
+        function reparaAnalitzador() {
+            despertaContext();
+            if (audioCors) connectAnalyser();
         }
 
         /** Hi ha dades reals per dibuixar? */
@@ -3125,7 +3168,7 @@
         function playStation(station, autoplay = true) {
             if (externaSona() && externaSt !== station) tancaExterna(true);
             currentStation = station;
-            vizMutDes = 0;
+            vizMutDes = 0; vizIntents = 0;
             localStorage.setItem('radioLast', JSON.stringify(station));
 
             byId('player-title').innerText = station.name;
