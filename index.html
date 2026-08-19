@@ -2142,11 +2142,10 @@
         let vizWipe = false;
         const vizPeaks = {};
 
-        // Set maneres de dibuixar el mateix so. Es canvia tocant l'equalitzador.
-        const VIZ_STYLES = ['blocs', 'linia', 'mirall', 'ventall', 'ona',
-                            'bombolles', 'tunel'];
+        // Cinc maneres de dibuixar el mateix so. Es canvia tocant l'equalitzador.
+        const VIZ_STYLES = ['blocs', 'linia', 'mirall', 'ventall', 'tunel'];
         // Estat propi dels estils que recorden el que ha passat abans.
-        const vizBombolles = {}, vizAnelles = {}, vizSostres = {};
+        const vizAnelles = {}, vizSostres = {};
 
         /**
          * Cada banda mesurada contra el seu propi màxim recent. Els greus van
@@ -2166,7 +2165,6 @@
             vizStyle = (vizStyle + 1) % VIZ_STYLES.length;
             localStorage.setItem('radioViz', vizStyle);
             Object.keys(vizPeaks).forEach(k => delete vizPeaks[k]);
-            Object.keys(vizBombolles).forEach(k => delete vizBombolles[k]);
             Object.keys(vizAnelles).forEach(k => delete vizAnelles[k]);
             Object.keys(vizSostres).forEach(k => delete vizSostres[k]);
             vizWipe = true;
@@ -2195,6 +2193,7 @@
         let lastFrame = 0, lastBass = -1;
 
         let vizMutDes = 0, vizIntents = 0;   // des de quan no arriba res, i quantes reparacions duem
+        let apartBrut = null, apartUltim = 0;
 
         /**
          * Espectre inventat, NOMÉS per a les emissores que no envien CORS: el
@@ -2204,7 +2203,6 @@
          */
         function omplePintat(t) {
             if (!freqData) freqData = new Uint8Array(512);
-            if (!timeData) timeData = new Uint8Array(1024);
 
             const n = freqData.length;
             const pols = 0.72 + 0.28 * Math.pow(Math.abs(Math.sin(t / 480)), 3);
@@ -2217,14 +2215,6 @@
                 freqData[i] = Math.max(0, Math.min(255, v * 300));
             }
 
-            const m = timeData.length;
-            for (let i = 0; i < m; i++) {
-                const x = i / m;
-                const o = Math.sin(x * 34 + t / 190) * 0.55
-                        + Math.sin(x * 91 + t / 70) * 0.25
-                        + Math.sin(x * 7 + t / 430) * 0.20;
-                timeData[i] = Math.max(0, Math.min(255, 128 + o * pols * 92));
-            }
         }
 
         function drawViz(now) {
@@ -2258,11 +2248,26 @@
             // Si el camí normal no dona res, mirem el que hem descodificat a
             // part. És el mateix so, mesurat pel nostre compte.
             if (!senyal && apart && apart.analitzador) {
-                if (!freqData) freqData = new Uint8Array(apart.analitzador.frequencyBinCount);
-                apart.analitzador.getByteFrequencyData(freqData);
-                let suma = 0;
-                for (let i = 0; i < freqData.length; i += 8) suma += freqData[i];
-                if (suma > 0) { senyal = true; fontDades = apart.analitzador; }
+                const n = apart.analitzador.frequencyBinCount;
+                if (!apartBrut || apartBrut.length !== n) apartBrut = new Uint8Array(n);
+                if (!freqData || freqData.length !== n) freqData = new Uint8Array(n);
+                apart.analitzador.getByteFrequencyData(apartBrut);
+
+                let suma = 0, viu = 0;
+                for (let i = 0; i < n; i += 8) suma += apartBrut[i];
+                // Caiguda suau, com la de qualsevol vúmetre: si per un instant
+                // no arriba res —la xarxa fa un badall— les barres baixen soles
+                // en comptes de caure a plom i tornar a pujar de cop.
+                for (let i = 0; i < n; i++) {
+                    const cau = freqData[i] * 0.86;
+                    freqData[i] = apartBrut[i] > cau ? apartBrut[i] : cau;
+                    if (freqData[i] > viu) viu = freqData[i];
+                }
+
+                if (suma > 0) { senyal = true; fontDades = apart.analitzador; apartUltim = ara; }
+                else if (apartUltim && ara - apartUltim < 800 && viu > 4) {
+                    senyal = true; fontDades = apart.analitzador;
+                }
             }
 
             // Amb CORS el que es veu és el que sona, sempre. Sense CORS no hi
@@ -2465,54 +2470,7 @@
                     }
                     ctx.shadowBlur = 0;
 
-                } else if (VIZ_STYLES[vizStyle] === 'bombolles') {
-                    // Cada cop de greu deixa anar bombolles que pugen i es
-                    // desfan. El color el posa la banda que les ha empès.
-                    let bs = vizBombolles[id];
-                    if (!bs) bs = vizBombolles[id] = [];
-
-                    const n = petit ? 12 : 26;
-                    const sostre = petit ? 26 : 64;
-                    for (let i = 0; i < n && bs.length < sostre; i++) {
-                        const v = relativa(id, i, n, banda(i, n));
-                        if (v < 0.5 || Math.random() > (v - 0.4) * 0.55) continue;
-                        bs.push({
-                            x: padX + (i + 0.5) * (usableW / n) + (Math.random() - 0.5) * 7,
-                            y: h + 4,
-                            r: (petit ? 1.4 : 2.6) + v * (petit ? 3 : 6.5),
-                            vy: (petit ? 0.5 : 0.85) + v * (petit ? 1 : 2),
-                            to: to(i, n),
-                            vida: 1
-                        });
-                    }
-
-                    for (let k = bs.length - 1; k >= 0; k--) {
-                        const b = bs[k];
-                        b.y -= b.vy;
-                        b.x += Math.sin((b.y + k * 30) / 22) * 0.45;
-                        b.vida -= 0.012;
-                        if (b.vida <= 0 || b.y + b.r < -4) { bs.splice(k, 1); continue; }
-
-                        ctx.globalAlpha = Math.max(0, b.vida) * 0.85;
-                        const col = 'hsl(' + b.to.toFixed(1) + ', 98%, 62%)';
-                        ctx.fillStyle = col;
-                        ctx.shadowColor = col;
-                        ctx.shadowBlur = petit ? 4 : 9;
-                        ctx.beginPath();
-                        ctx.arc(b.x, b.y, b.r * (0.6 + b.vida * 0.4), 0, Math.PI * 2);
-                        ctx.fill();
-                        // el reflex que les fa semblar bombolles de debò
-                        ctx.shadowBlur = 0;
-                        ctx.globalAlpha = Math.max(0, b.vida) * 0.5;
-                        ctx.fillStyle = '#fff';
-                        ctx.beginPath();
-                        ctx.arc(b.x - b.r * 0.3, b.y - b.r * 0.35, Math.max(0.5, b.r * 0.22), 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-                    ctx.globalAlpha = 1;
-                    ctx.shadowBlur = 0;
-
-                } else if (VIZ_STYLES[vizStyle] === 'tunel') {
+                } else {
                     // Un túnel: cada cop de bombo deixa anar un anell que
                     // s'eixampla fins a sortir de la tira. Com mirar la música
                     // de cara.
@@ -2559,28 +2517,6 @@
                     ctx.globalAlpha = 1;
                     ctx.shadowBlur = 0;
                     ctx.lineCap = 'round';
-
-                } else {
-                    // Oscil·loscopi: la forma d'ona real, no l'espectre.
-                    if (fontDades) fontDades.getByteTimeDomainData(timeData);
-                    const n = timeData.length;
-                    const pas = usableW / (n - 1);
-                    const cy = h / 2;
-                    const grad = ctx.createLinearGradient(padX, 0, padX + usableW, 0);
-                    for (let k = 0; k <= 6; k++) grad.addColorStop(k / 6, 'hsl(' + to(k, 7).toFixed(1) + ', 95%, 60%)');
-                    // Sense amplificar: amb guany satura de seguida i es
-                    // converteix en una banda de soroll que ja no es mou.
-                    ctx.beginPath();
-                    for (let i = 0; i < n; i++) {
-                        const y = cy + ((timeData[i] - 128) / 128) * (maxH / 2);
-                        i ? ctx.lineTo(padX + i * pas, y) : ctx.moveTo(padX, y);
-                    }
-                    ctx.strokeStyle = grad;
-                    ctx.lineWidth = petit ? 1.5 : 2.2;
-                    ctx.shadowColor = 'rgba(255, 214, 0, .45)';
-                    ctx.shadowBlur = petit ? 6 : 14;
-                    ctx.stroke();
-                    ctx.shadowBlur = 0;
                 }
             });
             vizWipe = false;
@@ -2997,7 +2933,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-19q';
+        const VERSIO = '2026-08-19s';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3595,7 +3531,10 @@
                   + 'context    ' + (audioCtx ? audioCtx.state : '—') + '\n'
                   + 'senyal max ' + mx + '   reparacions ' + vizIntents + '\n'
                   + 'tira       ' + (vizLive() ? 'viva' : 'plegada') + '\n'
-                  + 'anàlisi    ' + (apart ? (apart.analitzador ? 'en marxa' : 'obrint') : 'no cal') + '\n'
+                  + 'anàlisi    ' + (apart ? ((apart.analitzador ? 'en marxa' : 'obrint')
+                                     + ' t:' + (apart.quantsTrossos || 0)
+                                     + ' fallades:' + (apart.fallades || 0)
+                                     + ' forats:' + (apart.forats || 0)) : 'no cal') + '\n'
                   + 'captura    ' + (typeof audio.captureStream === 'function' ? 'sí'
                                    : (typeof audio.mozCaptureStream === 'function' ? 'moz' : 'NO')) + '\n'
                   + 'MSE mp3    ' + (window.MediaSource && MediaSource.isTypeSupported
@@ -3693,18 +3632,31 @@
 
                     const tall = tallaFotograma(cua);
                     if (!tall.llest) { cua = tall.resta; continue; }
-                    cua = tall.resta;
 
                     let buf;
                     try { buf = await audioCtx.decodeAudioData(tall.llest.slice().buffer); }
-                    catch (e) { continue; }
+                    catch (e) {
+                        // Llençar-lo obria un forat de dos segons al gràfic.
+                        // El guardem i ho tornem a provar amb més dades: sovint
+                        // només li faltava el final d'un fotograma. Si ni amb
+                        // 400 kB va, allò no és àudio i el deixem anar.
+                        a.fallades = (a.fallades || 0) + 1;
+                        if (cua.length < 400000) continue;
+                        cua = tall.resta;
+                        continue;
+                    }
+                    cua = tall.resta;
                     if (a.aturat) break;
 
                     const font = audioCtx.createBufferSource();
                     font.buffer = buf;
                     font.connect(a.analitzador);
-                    // Si ens hem quedat enrere, tornem al present.
-                    if (a.quan < audioCtx.currentTime) a.quan = audioCtx.currentTime + 0.12;
+                    // Saltar al present a la mínima obria un forat cada
+                    // vegada. Només ho fem si anem de debò endarrerits.
+                    if (a.quan < audioCtx.currentTime - 0.05) {
+                        a.quan = audioCtx.currentTime + 0.05;
+                        a.forats = (a.forats || 0) + 1;
+                    }
                     // Cada tros descodificat porta un silenci de fàbrica al
                     // principi i al final —el marge del compressor—. Encadenats
                     // tal qual, això seria un sotrac cada dos segons i mig. Ens
