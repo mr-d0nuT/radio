@@ -2594,7 +2594,9 @@
         /** Rànquing del país + feeds, desat al dispositiu com les emissores. */
         async function fetchPodcasts(region) {
             const cc = ITUNES_CC[region] || 'es';
-            const clau = 'pod-' + (region === 'Catalunya' ? 'cat' : cc);
+            // El "2" és a posta: les llistes desades abans no porten descripció,
+            // i durarien sis hores més sense ensenyar-la.
+            const clau = 'pod2-' + (region === 'Catalunya' ? 'cat' : cc);
             const spinner = byId('loading-spinner'), list = byId('stations-list');
 
             const desat = await cacheGet(clau);
@@ -2658,7 +2660,8 @@
                     return {
                         id, name: e['im:name'].label, artist: e['im:artist'].label,
                         art: (x.artworkUrl600 || (e['im:image'] && e['im:image'][e['im:image'].length - 1].label) || ''),
-                        feed: x.feedUrl || '', episodes: x.trackCount || 0, origen: 'apple'
+                        feed: x.feedUrl || '', episodes: x.trackCount || 0, origen: 'apple',
+                        descripcio: netejaHtml((e.summary && e.summary.label) || '')
                     };
                 }).filter(x => x.feed);
 
@@ -2782,6 +2785,7 @@
                         <div class="text-xs text-white/40 truncate flex items-center gap-1.5">
                             ${marcaOrigen(pod.origen)}<span class="truncate">${pod.artist}</span>
                         </div>
+                        ${pod.descripcio ? `<div class="dues-linies text-[11px] leading-snug text-white/35 mt-0.5">${escapaText(pod.descripcio)}</div>` : ''}
                     </div>
                     <button class="fav-btn p-2 rounded-full hover:bg-white/10 transition-colors shrink-0 ${esFav ? 'text-[#ff2d55] fill-current' : 'text-white/20 hover:text-white/60'}">
                         ${esFav ? ICON.heartOn('w-4 h-4 pointer-events-none') : ICON.heartOff('w-4 h-4 pointer-events-none')}
@@ -2832,14 +2836,16 @@
                 .then(r => r.json())
                 .then(d => (d.data || []).filter(x => x.xmlURL).map(x => ({
                     id: 'fy-' + x.id, name: x.title || '', artist: x.author || 'fyyd',
-                    art: x.imgURL || '', feed: x.xmlURL, episodes: 0, origen: 'rss'
+                    art: x.imgURL || '', feed: x.xmlURL, episodes: 0, origen: 'rss',
+                    descripcio: netejaHtml(x.description || '')
                 }))).catch(() => []);
 
             const gpod = fetch('https://gpodder.net/search.json?q=' + q)
                 .then(r => r.json())
                 .then(d => (d || []).filter(x => x.url).map(x => ({
                     id: 'gp-' + x.url, name: x.title || '', artist: x.author || 'gpodder',
-                    art: x.scaled_logo_url || x.logo_url || '', feed: x.url, episodes: 0, origen: 'rss'
+                    art: x.scaled_logo_url || x.logo_url || '', feed: x.url, episodes: 0, origen: 'rss',
+                    descripcio: netejaHtml(x.description || '')
                 }))).catch(() => []);
 
             const parts = await Promise.all([apple, fyyd, gpod]);
@@ -2860,6 +2866,13 @@
         const ITUNES_NS = 'http://www.itunes.com/dtds/podcast-1.0.dtd';
 
         let ultimCanal = null;
+
+        /** Text de fora dins d'un innerHTML: sempre escapat. */
+        function escapaText(txt) {
+            const d = document.createElement('div');
+            d.textContent = txt || '';
+            return d.innerHTML;
+        }
 
         /** Les descripcions venen plenes d'HTML; aquí només volem el text. */
         function netejaHtml(txt) {
