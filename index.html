@@ -2223,9 +2223,9 @@
         function drawViz(now) {
             vizRAF = requestAnimationFrame(drawViz);
 
-            // 33 ms: per a un equalitzador de blocs, 30 imatges per segon es
-            // veuen igual de fluides i estalvien la meitat de la feina.
-            if (now - lastFrame < 33) return;
+            // 20 ms: cinquanta imatges per segon. Amb trenta el dibuix
+            // arrossegava i els cops secs es perdien pel camí.
+            if (now - lastFrame < 20) return;
             lastFrame = now || 0;
 
             const ara = now || Date.now();
@@ -2268,7 +2268,7 @@
                 // no arriba res —la xarxa fa un badall— les barres baixen soles
                 // en comptes de caure a plom i tornar a pujar de cop.
                 for (let i = 0; i < n; i++) {
-                    const cau = freqData[i] * 0.80;
+                    const cau = freqData[i] * 0.62;
                     freqData[i] = apartBrut[i] > cau ? apartBrut[i] : cau;
                     if (freqData[i] > viu) viu = freqData[i];
                 }
@@ -2351,7 +2351,11 @@
                     const to = Math.max(from + 1, Math.floor(Math.pow((i + 1) / n, 1.7) * usable));
                     let v = 0;
                     for (let k = from; k < to; k++) v = Math.max(v, freqData[k]);
-                    return v / 255;
+                    // La ràdio va molt comprimida: gairebé tot el senyal viu
+                    // entre el 40 i el 95 per cent i, tal qual, les barres es
+                    // quedaven sempre altes i amb prou feines es movien. Traiem
+                    // el sòl i tornem a estirar fins a dalt.
+                    return Math.max(0, Math.min(1, (v / 255 - 0.28) / 0.66));
                 };
                 const to = (i, n) => (270 + (i / Math.max(1, n - 1)) * 280) % 360;
 
@@ -2943,7 +2947,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-20a';
+        const VERSIO = '2026-08-20b';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3470,7 +3474,7 @@
                 if (!analyser) {
                     analyser = audioCtx.createAnalyser();
                     analyser.fftSize = 1024;
-                    analyser.smoothingTimeConstant = 0.75;
+                    analyser.smoothingTimeConstant = 0.45;
                     freqData = new Uint8Array(analyser.frequencyBinCount);
                     timeData = new Uint8Array(analyser.fftSize);
                     analyser.connect(audioCtx.destination);
@@ -3616,9 +3620,9 @@
 
                 a.analitzador = audioCtx.createAnalyser();
                 a.analitzador.fftSize = 1024;
-                // Menys allisat que el del reproductor: aquest passa per un
-                // rellevat de fitxers i, amb 0,75, sortia massa pla.
-                a.analitzador.smoothingTimeConstant = 0.55;
+                // Ben poc allisat: aquest passa per un rellevat de fitxers i
+                // qualsevol suavitzat de més el deixava pla.
+                a.analitzador.smoothingTimeConstant = 0.2;
                 a.mut = audioCtx.createGain();
                 a.mut.gain.value = 0;          // no s'ha de sentir: el so bo va a part
                 a.analitzador.connect(a.mut);
