@@ -2259,7 +2259,7 @@
                 // no arriba res —la xarxa fa un badall— les barres baixen soles
                 // en comptes de caure a plom i tornar a pujar de cop.
                 for (let i = 0; i < n; i++) {
-                    const cau = freqData[i] * 0.94;
+                    const cau = freqData[i] * 0.80;
                     freqData[i] = apartBrut[i] > cau ? apartBrut[i] : cau;
                     if (freqData[i] > viu) viu = freqData[i];
                 }
@@ -2933,7 +2933,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-19x';
+        const VERSIO = '2026-08-19y';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3606,7 +3606,9 @@
 
                 a.analitzador = audioCtx.createAnalyser();
                 a.analitzador.fftSize = 1024;
-                a.analitzador.smoothingTimeConstant = 0.75;
+                // Menys allisat que el del reproductor: aquest passa per un
+                // rellevat de fitxers i, amb 0,75, sortia massa pla.
+                a.analitzador.smoothingTimeConstant = 0.55;
                 a.mut = audioCtx.createGain();
                 a.mut.gain.value = 0;          // no s'ha de sentir: el so bo va a part
                 a.analitzador.connect(a.mut);
@@ -3634,16 +3636,19 @@
                     junt.set(cua, 0); junt.set(value, cua.length);
                     cua = junt;
 
-                    // Trossos d'uns quatre segons: prou llargs perquè el rellevat
-                    // sigui còmode i prou curts per no anar endarrerits.
-                    if (cua.length < 64000) continue;
+                    // Trossos d'un segon i mig. Amb quatre segons el gràfic
+                    // anava massa endarrerit del que se sentia.
+                    if (cua.length < 24000) continue;
                     const tall = tallaFotograma(cua);
                     if (!tall.llest) { cua = tall.resta; continue; }
                     cua = tall.resta;
 
-                    // Si ja en tenim de sobra esperant, deixem passar aquest: el
-                    // directe no s'atura i val més anar al dia que acumular.
-                    if (a.pendents.length > 2) { a.sobrer = (a.sobrer || 0) + tall.llest.length; continue; }
+                    // Com a molt un a l'espera. Acumular-ne més només afegeix
+                    // retard: el directe no s'atura i val més anar al dia.
+                    if (a.pendents.length >= 1) {
+                        a.sobrer = (a.sobrer || 0) + tall.llest.length;
+                        continue;
+                    }
 
                     const u = URL.createObjectURL(new Blob([tall.llest], { type: 'audio/mpeg' }));
                     a.pendents.push(u);
