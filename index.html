@@ -2947,7 +2947,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-20c';
+        const VERSIO = '2026-08-20d';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3638,7 +3638,7 @@
                     el.addEventListener('ended', () => serveixApart(a));
                     el.addEventListener('timeupdate', () => {
                         // Quan a aquest li queda un sospir, engeguem l'altre.
-                        if (el.duration && el.duration - el.currentTime < 0.7) serveixApart(a);
+                        if (el.duration && el.duration - el.currentTime < 0.4) serveixApart(a);
                     });
                 });
 
@@ -3649,7 +3649,7 @@
                     if (a.aturat) return;
                     const capSona = a.reps.every(el => el.paused || el.ended);
                     if (capSona && a.pendents.length) serveixApart(a);
-                }, 100);
+                }, 60);
 
                 let cua = new Uint8Array(0);
                 while (!a.aturat) {
@@ -3660,16 +3660,21 @@
                     junt.set(cua, 0); junt.set(value, cua.length);
                     cua = junt;
 
-                    // Trossos de dos segons: menys rellevats que amb un segon i
-                    // mig, i encara prou curts per no anar endarrerit.
-                    if (cua.length < 32000) continue;
+                    // Trossos d'un segon: com més curts, més fina és la
+                    // coincidència amb el que se sent.
+                    if (cua.length < 16000) continue;
                     const tall = tallaFotograma(cua);
                     if (!tall.llest) { cua = tall.resta; continue; }
                     cua = tall.resta;
 
-                    // Dos a l'espera. Amb un de sol, quan un reproductor acabava
-                    // sovint no hi havia res a punt i es veia el parpelleig.
-                    if (a.pendents.length >= 2) {
+                    // En connectar, el servidor deixa anar una ràfega perquè el
+                    // so arrenqui de seguida, i el reproductor comença just
+                    // des d'allà. Si nosaltres la llencéssim per posar-nos al
+                    // dia amb el directe, aniríem per davant del que se sent:
+                    // ben sincronitzat vol dir seguir la mateixa línia de temps
+                    // que ell, des del mateix punt. Per això no descartem res
+                    // fins que la cua és de debò massa llarga.
+                    if (a.pendents.length >= 4) {
                         a.sobrer = (a.sobrer || 0) + tall.llest.length;
                         continue;
                     }
