@@ -2947,7 +2947,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-20b';
+        const VERSIO = '2026-08-20c';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3590,6 +3590,7 @@
             const a = apart;
             apart = null;
             a.aturat = true;
+            try { clearInterval(a.vigilant); } catch (e) {}
             try { a.lector.cancel(); } catch (e) {}
             try { (a.reps || []).forEach(el => { try { el.pause(); el.removeAttribute('src'); } catch (e) {} }); } catch (e) {}
             try { (a.urls || []).forEach(u => { try { URL.revokeObjectURL(u); } catch (e) {} }); } catch (e) {}
@@ -3637,9 +3638,18 @@
                     el.addEventListener('ended', () => serveixApart(a));
                     el.addEventListener('timeupdate', () => {
                         // Quan a aquest li queda un sospir, engeguem l'altre.
-                        if (el.duration && el.duration - el.currentTime < 0.35) serveixApart(a);
+                        if (el.duration && el.duration - el.currentTime < 0.7) serveixApart(a);
                     });
                 });
+
+                // Els avisos del reproductor poden arribar tard o no arribar.
+                // Aquest vigilant mira deu vegades per segon si tot s'ha aturat
+                // amb feina pendent, i ho torna a engegar.
+                a.vigilant = setInterval(() => {
+                    if (a.aturat) return;
+                    const capSona = a.reps.every(el => el.paused || el.ended);
+                    if (capSona && a.pendents.length) serveixApart(a);
+                }, 100);
 
                 let cua = new Uint8Array(0);
                 while (!a.aturat) {
@@ -3650,16 +3660,16 @@
                     junt.set(cua, 0); junt.set(value, cua.length);
                     cua = junt;
 
-                    // Trossos d'un segon i mig. Amb quatre segons el gràfic
-                    // anava massa endarrerit del que se sentia.
-                    if (cua.length < 24000) continue;
+                    // Trossos de dos segons: menys rellevats que amb un segon i
+                    // mig, i encara prou curts per no anar endarrerit.
+                    if (cua.length < 32000) continue;
                     const tall = tallaFotograma(cua);
                     if (!tall.llest) { cua = tall.resta; continue; }
                     cua = tall.resta;
 
-                    // Com a molt un a l'espera. Acumular-ne més només afegeix
-                    // retard: el directe no s'atura i val més anar al dia.
-                    if (a.pendents.length >= 1) {
+                    // Dos a l'espera. Amb un de sol, quan un reproductor acabava
+                    // sovint no hi havia res a punt i es veia el parpelleig.
+                    if (a.pendents.length >= 2) {
                         a.sobrer = (a.sobrer || 0) + tall.llest.length;
                         continue;
                     }
