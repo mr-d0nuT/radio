@@ -2194,6 +2194,9 @@
 
         let vizMutDes = 0, vizIntents = 0;   // des de quan no arriba res, i quantes reparacions duem
         let apartBrut = null, apartUltim = 0;
+        // Si el reproductor ha donat senyal alguna vegada amb aquesta emissora,
+        // no cal cap anàlisi a part: som en un navegador que sap fer-ho sol.
+        let jaHiHaviaSenyal = false;
 
         /**
          * Espectre inventat, NOMÉS per a les emissores que no envien CORS: el
@@ -2238,7 +2241,13 @@
                 analyser.getByteFrequencyData(freqData);
                 let suma = 0;
                 for (let i = 0; i < freqData.length; i += 8) suma += freqData[i];
-                if (suma > 0) { vizMutDes = 0; vizIntents = 0; senyal = true; fontDades = analyser; }
+                if (suma > 0) {
+                    vizMutDes = 0; vizIntents = 0; senyal = true; fontDades = analyser;
+                    // El camí normal funciona: si teníem cap anàlisi a part
+                    // engegada, sobra, i amb ella les dades que gasta.
+                    if (!jaHiHaviaSenyal) jaHiHaviaSenyal = true;
+                    if (apart) aturaApart();
+                }
                 else if (!vizMutDes) vizMutDes = ara;
                 else if (ara - vizMutDes > 900 && vizIntents < 2) {
                     vizIntents++; vizMutDes = ara; reparaAnalitzador();
@@ -2275,7 +2284,8 @@
             // que la tira s'omple amb un dibuix, per no quedar-se morta.
             // El camí de sempre no dona res: engeguem l'anàlisi a part. La
             // reproducció no es toca; només baixem el mateix so per mesurar-lo.
-            if (!senyal && sonaAra() && !apart && vizMutDes && ara - vizMutDes > 150) analitzaApart();
+            if (!senyal && sonaAra() && !apart && !jaHiHaviaSenyal
+                && vizMutDes && ara - vizMutDes > 400) analitzaApart();
 
             // El dibuix inventat, només si ni tan sols l'anàlisi a part
             // aconsegueix res —quan el navegador no ens deixa ni baixar el flux.
@@ -2933,7 +2943,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-19z';
+        const VERSIO = '2026-08-20a';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3768,6 +3778,7 @@
         function playStation(station, autoplay = true) {
             if (externaSona() && externaSt !== station) tancaExterna(true);
             aturaApart();
+            jaHiHaviaSenyal = false;
             currentStation = station;
             vizMutDes = 0; vizIntents = 0;
             localStorage.setItem('radioLast', JSON.stringify(station));
