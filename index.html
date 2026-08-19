@@ -2197,10 +2197,10 @@
         let vizMutDes = 0, vizIntents = 0;   // des de quan no arriba res, i quantes reparacions duem
 
         /**
-         * Espectre de mentida, per quan el navegador no ens deixa llegir el de
-         * debò. Barreja d'ones lentes i ràpides amb els aguts sempre més
-         * baixos, que és com es comporta la música de veritat: així no es nota
-         * un patró que es repeteix.
+         * Espectre inventat, NOMÉS per a les emissores que no envien CORS: el
+         * navegador no ens deixa ni mirar-ne el so, i abans la tira es quedava
+         * morta. Barreja d'ones lentes i ràpides amb els aguts sempre més
+         * baixos, perquè no s'hi noti un patró que es repeteix.
          */
         function omplePintat(t) {
             if (!freqData) freqData = new Uint8Array(512);
@@ -2211,10 +2211,9 @@
             for (let i = 0; i < n; i++) {
                 const f = i / n;
                 const caiguda = Math.pow(1 - f, 1.5);
-                const a = Math.sin(t / 240 + i * 0.31);
-                const b = Math.sin(t / 910 + i * 0.07);
-                const c = Math.sin(t / 1730 - i * 0.19);
-                const v = caiguda * pols * (0.52 + 0.28 * a + 0.14 * b + 0.06 * c);
+                const v = caiguda * pols * (0.52 + 0.28 * Math.sin(t / 240 + i * 0.31)
+                                                 + 0.14 * Math.sin(t / 910 + i * 0.07)
+                                                 + 0.06 * Math.sin(t / 1730 - i * 0.19));
                 freqData[i] = Math.max(0, Math.min(255, v * 300));
             }
 
@@ -2252,16 +2251,14 @@
                 }
             }
 
-            // Quan no hi ha manera de llegir el so —Safari a Mac no fa passar
-            // per la Web Audio API l'àudio d'un altre domini, i les emissores
-            // sense CORS no s'hi poden ni connectar— tornem a on érem al
-            // principi: una animació decorativa. No diu què sona, però la tira
-            // no es queda morta mentre hi ha música.
-            const rendits = !base || (vizMutDes && ara - vizMutDes > 2000 && vizIntents >= 2);
-            const decoratiu = !senyal && rendits && sonaAra();
-            if (decoratiu) omplePintat(ara);
+            // Amb CORS el que es veu és el que sona, sempre. Sense CORS no hi
+            // ha res a llegir —el navegador no ens deixa ni mirar-lo— i allà sí
+            // que la tira s'omple amb un dibuix, per no quedar-se morta.
+            const senseCors = !audioCors && sonaAra();
+            if (!senyal && senseCors) omplePintat(ara);
 
-            const live = senyal || decoratiu;
+            const live = senyal || senseCors
+                      || (base && !(vizMutDes && ara - vizMutDes > 2000 && vizIntents >= 2));
 
             const targets = vizTargets();
 
@@ -2979,7 +2976,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-19e';
+        const VERSIO = '2026-08-19f';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3480,7 +3477,9 @@
             attachAudioListeners(audio);
             ['timeupdate', 'loadedmetadata', 'durationchange', 'emptied'].forEach(ev =>
                 audio.addEventListener(ev, syncSeek));
-            if (wantCors) connectAnalyser();
+            // El node d'àudio NO es crea aquí. WebKit no lliga un element que
+            // encara no té res a sonar: es queda mut per sempre, encara que
+            // després li donis la font. Es crea quan comença a sonar.
         }
 
         // Un element d'àudio només admet una font per context: si la demanem
@@ -3788,6 +3787,9 @@
             setPlayIcons(true);
             setStatus('live');
             setLiveIndicators(true);
+            // Ara l'element ja té so de debò: aquest és el moment de lligar-hi
+            // l'analitzador.
+            if (audioCors) connectAnalyser();
             marcaOffline(currentStation, false);
             if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
             if (veientEmissores() && allStations.length > 0) renderStations(allStations);
