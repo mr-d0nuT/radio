@@ -2259,13 +2259,13 @@
                 // no arriba res —la xarxa fa un badall— les barres baixen soles
                 // en comptes de caure a plom i tornar a pujar de cop.
                 for (let i = 0; i < n; i++) {
-                    const cau = freqData[i] * 0.86;
+                    const cau = freqData[i] * 0.94;
                     freqData[i] = apartBrut[i] > cau ? apartBrut[i] : cau;
                     if (freqData[i] > viu) viu = freqData[i];
                 }
 
                 if (suma > 0) { senyal = true; fontDades = apart.analitzador; apartUltim = ara; }
-                else if (apartUltim && ara - apartUltim < 800 && viu > 4) {
+                else if (apartUltim && ara - apartUltim < 1800 && viu > 3) {
                     senyal = true; fontDades = apart.analitzador;
                 }
             }
@@ -2933,7 +2933,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-19s';
+        const VERSIO = '2026-08-19w';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3534,7 +3534,8 @@
                   + 'anàlisi    ' + (apart ? ((apart.analitzador ? 'en marxa' : 'obrint')
                                      + ' t:' + (apart.quantsTrossos || 0)
                                      + ' fallades:' + (apart.fallades || 0)
-                                     + ' forats:' + (apart.forats || 0)) : 'no cal') + '\n'
+                                     + ' forats:' + (apart.forats || 0)
+                                     + ' pista:' + (apart.pista || 0).toFixed(1) + 's') : 'no cal') + '\n'
                   + 'captura    ' + (typeof audio.captureStream === 'function' ? 'sí'
                                    : (typeof audio.mozCaptureStream === 'function' ? 'moz' : 'NO')) + '\n'
                   + 'MSE mp3    ' + (window.MediaSource && MediaSource.isTypeSupported
@@ -3578,6 +3579,7 @@
             apart = null;
             a.aturat = true;
             try { a.lector.cancel(); } catch (e) {}
+            try { (a.fonts || []).forEach(f => { try { f.stop(); } catch (e) {} }); } catch (e) {}
             try { a.mut.disconnect(); } catch (e) {}
         }
 
@@ -3596,7 +3598,7 @@
             const url = audio.currentSrc;
             if (!url || url.indexOf('blob:') === 0) return;
 
-            const a = { url, aturat: false, senyal: 0, quan: 0 };
+            const a = { url, aturat: false, senyal: 0, quan: 0, fonts: [] };
             apart = a;
             try {
                 const res = await fetch(url);
@@ -3617,7 +3619,7 @@
                 // Una mica de marge perquè una descàrrega lenta no obri un
                 // forat al gràfic. Poc: si en posem massa, l'equalitzador
                 // aniria endarrerit respecte del que se sent.
-                a.quan = audioCtx.currentTime + 0.3;
+                a.quan = audioCtx.currentTime + 0.15;
 
                 while (!a.aturat) {
                     const { done, value } = await a.lector.read();
@@ -3626,9 +3628,35 @@
                     const junt = new Uint8Array(cua.length + value.length);
                     junt.set(cua, 0); junt.set(value, cua.length);
                     cua = junt;
-                    // El primer tros, curt, perquè el gràfic arrenqui de
-                    // seguida; després més llargs, que van més fins.
-                    if (cua.length < (a.quantsTrossos ? 40000 : 7000)) continue;
+                    // Quant so tenim ja encarrilat per endavant. D'això depèn
+                    // tot: si esperem a ajuntar molts bytes mentre la pista
+                    // s'acaba, el gràfic es queda sense res i cau. Quan anem
+                    // justos, descodifiquem de seguida amb el poc que hi hagi;
+                    // quan hi ha marge, trossos més grans, que surten més fins.
+                    const pista = a.quan - audioCtx.currentTime;
+                    a.pista = pista;
+
+                    // El servidor envia més de pressa que el temps real: en
+                    // connectar deixa anar una ràfega, i si ho descodifiquéssim
+                    // tot acabaríem amb quinze segons encarrilats i el gràfic
+                    // aniria quinze segons endarrerit del que se sent.
+                    //
+                    // Abans ho arreglava aturant el que hi havia pendent i
+                    // reprogramant més endavant, i això era justament el que
+                    // obria els forats: un buit d'un segon i mig cada vegada.
+                    // Ara, quan anem sobrats, simplement deixem passar el que
+                    // arriba: el so ja encarrilat continua sonant sense un sol
+                    // tall, i quan la pista baixa tornem a agafar el fil, ja al
+                    // dia amb el directe.
+                    if (pista > 2.2) {
+                        a.sobrer = (a.sobrer || 0) + cua.length;
+                        cua = new Uint8Array(0);
+                        continue;
+                    }
+                    const calen = pista < 1.0 ? 4000
+                                : pista < 2.0 ? 12000
+                                : pista < 3.0 ? 24000 : 40000;
+                    if (cua.length < calen) continue;
 
                     const tall = tallaFotograma(cua);
                     if (!tall.llest) { cua = tall.resta; continue; }
@@ -3651,6 +3679,8 @@
                     const font = audioCtx.createBufferSource();
                     font.buffer = buf;
                     font.connect(a.analitzador);
+                    a.fonts.push(font);
+                    if (a.fonts.length > 16) a.fonts = a.fonts.slice(-10);
                     // Saltar al present a la mínima obria un forat cada
                     // vegada. Només ho fem si anem de debò endarrerits.
                     if (a.quan < audioCtx.currentTime - 0.05) {
