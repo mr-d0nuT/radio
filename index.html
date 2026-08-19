@@ -2355,7 +2355,7 @@
                     // entre el 40 i el 95 per cent i, tal qual, les barres es
                     // quedaven sempre altes i amb prou feines es movien. Traiem
                     // el sòl i tornem a estirar fins a dalt.
-                    return Math.max(0, Math.min(1, (v / 255 - 0.28) / 0.66));
+                    return Math.max(0, Math.min(1, (v / 255 - 0.22) / 0.70));
                 };
                 const to = (i, n) => (270 + (i / Math.max(1, n - 1)) * 280) % 360;
 
@@ -2947,7 +2947,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-20d';
+        const VERSIO = '2026-08-20e';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3637,8 +3637,13 @@
                     audioCtx.createMediaElementSource(el).connect(a.analitzador);
                     el.addEventListener('ended', () => serveixApart(a));
                     el.addEventListener('timeupdate', () => {
-                        // Quan a aquest li queda un sospir, engeguem l'altre.
-                        if (el.duration && el.duration - el.currentTime < 0.4) serveixApart(a);
+                        // Quan a aquest li queda un sospir, engeguem el que ja
+                        // teníem carregat i a punt.
+                        if (el.duration && el.duration - el.currentTime < 0.45) {
+                            const altre = a.reps.find(x => x !== el && x.__llest);
+                            if (altre) engegaApart(a, altre);
+                        }
+                        serveixApart(a);
                     });
                 });
 
@@ -3647,8 +3652,7 @@
                 // amb feina pendent, i ho torna a engegar.
                 a.vigilant = setInterval(() => {
                     if (a.aturat) return;
-                    const capSona = a.reps.every(el => el.paused || el.ended);
-                    if (capSona && a.pendents.length) serveixApart(a);
+                    serveixApart(a);
                 }, 60);
 
                 let cua = new Uint8Array(0);
@@ -3697,13 +3701,33 @@
          * li donem fitxers.
          */
         function serveixApart(a) {
-            if (!a || a.aturat || !a.pendents.length) return;
-            const lliure = a.reps.find(el => el.paused || el.ended || !el.src);
-            if (!lliure) return;
-            const u = a.pendents.shift();
+            if (!a || a.aturat) return;
+
+            // Primer, precarregar. Abans li donava el tros just en el moment del
+            // relleu i el reproductor encara l'havia de llegir: aquell instant
+            // de càrrega era el parpelleig que es veia. Ara el té a punt molt
+            // abans, i al relleu només cal dir-li que soni.
+            a.reps.forEach(el => {
+                if (!el.__llest && (el.paused || el.ended) && a.pendents.length) {
+                    try {
+                        el.src = a.pendents.shift();
+                        el.load();
+                        el.__llest = true;
+                    } catch (e) {}
+                }
+            });
+
+            // I si no sona cap, que arrenqui el que estigui llest.
+            if (a.reps.every(el => el.paused || el.ended)) {
+                const llest = a.reps.find(el => el.__llest);
+                if (llest) engegaApart(a, llest);
+            }
+        }
+
+        function engegaApart(a, el) {
+            el.__llest = false;
             try {
-                lliure.src = u;
-                lliure.play().then(() => { a.fets++; a.senyal = Date.now(); }).catch(() => {});
+                el.play().then(() => { a.fets++; a.senyal = Date.now(); }).catch(() => {});
             } catch (e) {}
         }
 
