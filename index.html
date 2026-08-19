@@ -2251,31 +2251,27 @@
                 }
             }
 
+            // Si el camí normal no dona res, mirem el que hem descodificat a
+            // part. És el mateix so, mesurat pel nostre compte.
+            if (!senyal && apart && apart.analitzador) {
+                if (!freqData) freqData = new Uint8Array(apart.analitzador.frequencyBinCount);
+                apart.analitzador.getByteFrequencyData(freqData);
+                let suma = 0;
+                for (let i = 0; i < freqData.length; i += 8) suma += freqData[i];
+                if (suma > 0) senyal = true;
+            }
+
             // Amb CORS el que es veu és el que sona, sempre. Sense CORS no hi
             // ha res a llegir —el navegador no ens deixa ni mirar-lo— i allà sí
             // que la tira s'omple amb un dibuix, per no quedar-se morta.
-            // Hi ha CORS, tot està lligat i tot i així no arriba res: som a
-            // WebKit amb un directe. Provem de servir-l'hi com un fitxer.
-            if (base && !senyal && vizIntents >= 2 && !mseSessio) provaMSE();
+            // El camí de sempre no dona res: engeguem l'anàlisi a part. La
+            // reproducció no es toca; només baixem el mateix so per mesurar-lo.
+            if (!senyal && sonaAra() && !apart && vizIntents >= 2) analitzaApart();
 
-            // I si el rodeig tampoc rutlla, no ens hi entestem: el desfem i
-            // tornem al camí de sempre, que almenys sona.
-            if (mseSessio) {
-                if (senyal) mseSessio.viu = ara;
-                else if (!mseSessio.viu) mseSessio.viu = ara;
-                else if (ara - mseSessio.viu > 6000) {
-                    mseMotiu = 'sense senyal amb ' + (mseSessio.trossos || 0) + ' trossos servits';
-                    aturaMSE();
-                    loadCandidate();
-                }
-            }
-
-            // El dibuix inventat només on llegir el so és impossible: emissores
-            // sense CORS, i les que el rodeig tampoc pot salvar (les que no
-            // emeten en MP3). Onsevulla que es pugui llegir, es llegeix.
-            const senseCors = !audioCors && sonaAra();
-            const rendits = base && !senyal && vizIntents >= 2 && !mseSessio && mseProvats.size > 0;
-            const pintat = !senyal && sonaAra() && (senseCors || rendits);
+            // El dibuix inventat, només si ni tan sols l'anàlisi a part
+            // aconsegueix res —quan el navegador no ens deixa ni baixar el flux.
+            const rendits = !apart || (apart.senyal && Date.now() - apart.senyal > 8000);
+            const pintat = !senyal && sonaAra() && vizIntents >= 2 && rendits;
             if (pintat) omplePintat(ara);
 
             const live = senyal || pintat
@@ -2997,7 +2993,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-19m';
+        const VERSIO = '2026-08-19n';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3595,10 +3591,7 @@
                   + 'context    ' + (audioCtx ? audioCtx.state : '—') + '\n'
                   + 'senyal max ' + mx + '   reparacions ' + vizIntents + '\n'
                   + 'tira       ' + (vizLive() ? 'viva' : 'plegada') + '\n'
-                  + 'via MSE    ' + (mseSessio ? ('EN MARXA, ' + (mseSessio.trossos || 0) + ' trossos'
-                                     + (mseSessio.error ? ' ERROR:' + mseSessio.error : '')
-                                     + ' ms:' + mseSessio.ms.readyState)
-                                   : (mseMotiu || 'encara no')) + '\n'
+                  + 'anàlisi    ' + (apart ? (apart.analitzador ? 'en marxa' : 'obrint') : 'no cal') + '\n'
                   + 'captura    ' + (typeof audio.captureStream === 'function' ? 'sí'
                                    : (typeof audio.mozCaptureStream === 'function' ? 'moz' : 'NO')) + '\n'
                   + 'MSE mp3    ' + (window.MediaSource && MediaSource.isTypeSupported
@@ -3618,137 +3611,101 @@
         });
 
         // ============================================================
-        // EL DIRECTE, SERVIT COM SI FOS UN FITXER
+        // ANÀLISI A PART
         //
-        // WebKit no fa passar per la Web Audio API l'àudio que arriba en
-        // streaming, però sí el d'un fitxer: per això a Safari els podcasts
-        // tenen equalitzador i les emissores no. La sortida és recollir el flux
-        // nosaltres i donar-l'hi a través d'un MediaSource: el reproductor rep
-        // una font nostra, del nostre origen, i llavors sí que la deixa mirar.
+        // WebKit no deixa analitzar la reproducció en directe. Ho hem provat
+        // tot: demanar-la amb CORS, lligar l'analitzador quan ja sonava, i fins
+        // i tot servir-li el flux des del nostre propi origen amb un
+        // MediaSource —setanta-un trossos servits sense un sol error i
+        // l'analitzador continuava rebent zero—. No és d'on ve l'àudio: és que
+        // el directe va per un camí que la pàgina no pot tocar.
         //
-        // Només s'hi entra quan s'ha comprovat que l'analitzador no rep res.
-        // Als navegadors on el camí normal funciona, aquest codi no s'executa.
+        // Així que no toquem la reproducció. El so que se sent surt del camí de
+        // sempre, intacte. El que fem és baixar el mateix flux una segona
+        // vegada i descodificar-lo en silenci, només per mesurar-lo. L'espectre
+        // és real: és el so de debò, analitzat a part.
+        //
+        // Costa una mica més de dades, i per això només s'engega on cal.
         // ============================================================
-        let mseSessio = null, mseMotiu = '';
-        const mseProvats = new Set();
+        let apart = null;              // { url, lector, aturat, analitzador, senyal }
 
-        const potMSE = () => !!(window.MediaSource && MediaSource.isTypeSupported
-                                && MediaSource.isTypeSupported('audio/mpeg'));
-
-        function aturaMSE() {
-            if (!mseSessio) return;
-            const s = mseSessio;
-            mseSessio = null;
-            s.aturat = true;
-            try { s.lector.cancel(); } catch (e) {}
-            try { if (s.ms.readyState === 'open') s.ms.endOfStream(); } catch (e) {}
+        function aturaApart() {
+            if (!apart) return;
+            const a = apart;
+            apart = null;
+            a.aturat = true;
+            try { a.lector.cancel(); } catch (e) {}
+            try { a.mut.disconnect(); } catch (e) {}
         }
 
-        async function provaMSE() {
-            if (!potMSE() || mseSessio || !currentStation || currentStation.episodi) return;
+        /** Retalla pel començament d'un fotograma, per no partir-ne cap pel mig. */
+        function tallaFotograma(dades) {
+            for (let i = dades.length - 2; i > 64; i--) {
+                if (dades[i] === 0xFF && (dades[i + 1] & 0xE0) === 0xE0) {
+                    return { llest: dades.subarray(0, i), resta: dades.slice(i) };
+                }
+            }
+            return { llest: null, resta: dades };
+        }
+
+        async function analitzaApart() {
+            if (apart || !audioCtx || !currentStation) return;
             const url = audio.currentSrc;
-            if (!url || url.indexOf('blob:') === 0 || mseProvats.has(url)) return;
-            mseProvats.add(url);
+            if (!url || url.indexOf('blob:') === 0) return;
 
-            const quiEra = currentStation;
-            let res;
-            mseMotiu = 'demanant';
-            try { res = await fetch(url); }
-            catch (e) { mseMotiu = 'fetch KO: ' + (e && e.name || e); return; }
-            const tipus = (res.headers.get('content-type') || '').toLowerCase();
-            mseMotiu = 'tipus ' + (tipus || 'buit');
-            // Només MP3: és el que el MediaSource admet arreu on ho hem mirat.
-            if (tipus.indexOf('mpeg') < 0 && tipus.indexOf('mp3') < 0) {
-                try { res.body.cancel(); } catch (e) {}
-                mseMotiu = 'no és mp3: ' + (tipus || 'sense tipus');
-                return;
-            }
-            if (currentStation !== quiEra) { try { res.body.cancel(); } catch (e) {} mseMotiu = 'canvi emissora'; return; }
-
+            const a = { url, aturat: false, senyal: 0, quan: 0 };
+            apart = a;
             try {
-                const ms = new MediaSource();
-                const s = { ms, sb: null, lector: res.body.getReader(), aturat: false };
-                mseSessio = s;
+                const res = await fetch(url);
+                if (!res.body || a.aturat) { aturaApart(); return; }
+                a.lector = res.body.getReader();
 
-                const vol = audio.volume, mut = audio.muted;
-                audio.src = URL.createObjectURL(ms);
-                audio.volume = vol; audio.muted = mut;
+                // Analitzador propi, i un guany a zero perquè el gràfic corri
+                // sense que se senti res: el so bo ja surt per l'altra banda.
+                a.analitzador = audioCtx.createAnalyser();
+                a.analitzador.fftSize = 1024;
+                a.analitzador.smoothingTimeConstant = 0.75;
+                a.mut = audioCtx.createGain();
+                a.mut.gain.value = 0;
+                a.analitzador.connect(a.mut);
+                a.mut.connect(audioCtx.destination);
 
-                mseMotiu = 'esperant sourceopen';
-                await new Promise(r => ms.addEventListener('sourceopen', r, { once: true }));
-                if (s.aturat || currentStation !== quiEra) { mseMotiu = 'avortada'; aturaMSE(); return; }
-                mseMotiu = 'obert';
+                let cua = new Uint8Array(0);
+                a.quan = audioCtx.currentTime + 0.25;
 
-                s.sb = ms.addSourceBuffer('audio/mpeg');
-                s.sb.addEventListener('error', () => { s.error = 'sb'; });
-                ms.addEventListener('sourceclose', () => { s.error = s.error || 'tancat'; });
-                // Un directe no porta línia de temps: sense mode seqüencial, el
-                // navegador col·loca cada tros on li sembla, sona un instant i
-                // s'encalla.
-                try { s.sb.mode = 'sequence'; } catch (e) {}
-                bombaMSE(s);
-            } catch (e) {
-                mseMotiu = 'excepció: ' + (e && e.name || e);
-                aturaMSE();
-                // Si el rodeig falla, tornem al camí de sempre.
-                if (currentStation === quiEra) loadCandidate();
-            }
-        }
+                while (!a.aturat) {
+                    const { done, value } = await a.lector.read();
+                    if (done || a.aturat) break;
 
-        /** Va passant el flux al reproductor, i esborra el que ja ha sonat. */
-        async function bombaMSE(s) {
-            // Esperar el "updateend" i prou era una trampa: si el navegador
-            // contesta amb un error, aquell avís no arriba mai i el bucle es
-            // quedava clavat per sempre. D'aquí que sonés un segon i emmudís.
-            // Ara qualsevol de les tres coses el desencalla.
-            const lliure = () => new Promise(r => {
-                if (!s.sb || !s.sb.updating) return r();
-                let fet = false;
-                const acaba = () => { if (fet) return; fet = true; r(); };
-                s.sb.addEventListener('updateend', acaba, { once: true });
-                s.sb.addEventListener('error', () => { s.error = 'sb'; acaba(); }, { once: true });
-                s.sb.addEventListener('abort', acaba, { once: true });
-                setTimeout(acaba, 3000);
-            });
-            try {
-                while (!s.aturat) {
-                    const { done, value } = await s.lector.read();
-                    if (done || s.aturat) break;
-                    await lliure();
-                    if (s.aturat) break;
+                    const junt = new Uint8Array(cua.length + value.length);
+                    junt.set(cua, 0); junt.set(value, cua.length);
+                    cua = junt;
+                    if (cua.length < 48000) continue;      // ~3 s a 128 kbps
 
-                    // Un directe no s'acaba mai: sense escurçar-lo, la memòria
-                    // creixeria fins que el navegador digués prou.
-                    try {
-                        const b = s.sb.buffered;
-                        if (b.length && audio.currentTime - b.start(0) > 45) {
-                            s.sb.remove(0, audio.currentTime - 20);
-                            await lliure();
-                        }
-                    } catch (e) {}
+                    const tall = tallaFotograma(cua);
+                    if (!tall.llest) { cua = tall.resta; continue; }
+                    cua = tall.resta;
 
-                    try {
-                        s.sb.appendBuffer(value);
-                        s.trossos = (s.trossos || 0) + 1;
-                        // Amb el primer tros a dins ja hi ha què reproduir.
-                        if (s.trossos === 1) audio.play().catch(() => {});
-                    } catch (e) {
-                        if (e && e.name === 'QuotaExceededError') {
-                            try {
-                                s.sb.remove(0, Math.max(0, audio.currentTime - 6));
-                                await lliure();
-                                s.sb.appendBuffer(value);
-                            } catch (e2) { break; }
-                        } else break;
-                    }
-                    await lliure();
+                    let buf;
+                    try { buf = await audioCtx.decodeAudioData(tall.llest.slice().buffer); }
+                    catch (e) { continue; }
+                    if (a.aturat) break;
 
-                    if (s.error) break;
+                    const font = audioCtx.createBufferSource();
+                    font.buffer = buf;
+                    font.connect(a.analitzador);
+                    // Si ens hem quedat enrere, tornem al present: val més un
+                    // salt al gràfic que anar arrossegant retard.
+                    if (a.quan < audioCtx.currentTime) a.quan = audioCtx.currentTime + 0.05;
+                    font.start(a.quan);
+                    a.quan += buf.duration;
+                    a.senyal = Date.now();
                 }
             } catch (e) {}
+            if (apart === a) aturaApart();
         }
 
-        /** Si no arriba senyal, val la pena tornar-ho a lligar tot abans de plegar. */
+        /** Si no arriba senyal, val la pena tornar-ho a lligar tot abans de plegar. */        /** Si no arriba senyal, val la pena tornar-ho a lligar tot abans de plegar. */
         function reparaAnalitzador() {
             despertaContext();
             if (audioCors) connectAnalyser();
@@ -3837,8 +3794,7 @@
 
         function playStation(station, autoplay = true) {
             if (externaSona() && externaSt !== station) tancaExterna(true);
-            aturaMSE();
-            mseProvats.clear();
+            aturaApart();
             currentStation = station;
             vizMutDes = 0; vizIntents = 0;
             localStorage.setItem('radioLast', JSON.stringify(station));
