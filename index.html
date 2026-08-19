@@ -2254,10 +2254,19 @@
             // Amb CORS el que es veu és el que sona, sempre. Sense CORS no hi
             // ha res a llegir —el navegador no ens deixa ni mirar-lo— i allà sí
             // que la tira s'omple amb un dibuix, per no quedar-se morta.
-            const senseCors = !audioCors && sonaAra();
-            if (!senyal && senseCors) omplePintat(ara);
+            // Hi ha CORS, tot està lligat i tot i així no arriba res: som a
+            // WebKit amb un directe. Provem de servir-l'hi com un fitxer.
+            if (base && !senyal && vizIntents >= 2 && !mseSessio) provaMSE();
 
-            const live = senyal || senseCors
+            // El dibuix inventat només on llegir el so és impossible: emissores
+            // sense CORS, i les que el rodeig tampoc pot salvar (les que no
+            // emeten en MP3). Onsevulla que es pugui llegir, es llegeix.
+            const senseCors = !audioCors && sonaAra();
+            const rendits = base && !senyal && vizIntents >= 2 && !mseSessio && mseProvats.size > 0;
+            const pintat = !senyal && sonaAra() && (senseCors || rendits);
+            if (pintat) omplePintat(ara);
+
+            const live = senyal || pintat
                       || (base && !(vizMutDes && ara - vizMutDes > 2000 && vizIntents >= 2));
 
             const targets = vizTargets();
@@ -2976,7 +2985,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-19f';
+        const VERSIO = '2026-08-19h';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3559,6 +3568,7 @@
                   + 'context    ' + (audioCtx ? audioCtx.state : '—') + '\n'
                   + 'senyal max ' + mx + '   reparacions ' + vizIntents + '\n'
                   + 'tira       ' + (vizLive() ? 'viva' : 'plegada') + '\n'
+                  + 'via MSE    ' + (mseSessio ? 'sí' : 'no') + '\n'
                   + 'captura    ' + (typeof audio.captureStream === 'function' ? 'sí'
                                    : (typeof audio.mozCaptureStream === 'function' ? 'moz' : 'NO')) + '\n'
                   + 'MSE mp3    ' + (window.MediaSource && MediaSource.isTypeSupported
@@ -3576,6 +3586,109 @@
                 mostraDiag();
             }
         });
+
+        // ============================================================
+        // EL DIRECTE, SERVIT COM SI FOS UN FITXER
+        //
+        // WebKit no fa passar per la Web Audio API l'àudio que arriba en
+        // streaming, però sí el d'un fitxer: per això a Safari els podcasts
+        // tenen equalitzador i les emissores no. La sortida és recollir el flux
+        // nosaltres i donar-l'hi a través d'un MediaSource: el reproductor rep
+        // una font nostra, del nostre origen, i llavors sí que la deixa mirar.
+        //
+        // Només s'hi entra quan s'ha comprovat que l'analitzador no rep res.
+        // Als navegadors on el camí normal funciona, aquest codi no s'executa.
+        // ============================================================
+        let mseSessio = null;
+        const mseProvats = new Set();
+
+        const potMSE = () => !!(window.MediaSource && MediaSource.isTypeSupported
+                                && MediaSource.isTypeSupported('audio/mpeg'));
+
+        function aturaMSE() {
+            if (!mseSessio) return;
+            const s = mseSessio;
+            mseSessio = null;
+            s.aturat = true;
+            try { s.lector.cancel(); } catch (e) {}
+            try { if (s.ms.readyState === 'open') s.ms.endOfStream(); } catch (e) {}
+        }
+
+        async function provaMSE() {
+            if (!potMSE() || mseSessio || !currentStation || currentStation.episodi) return;
+            const url = audio.currentSrc;
+            if (!url || url.indexOf('blob:') === 0 || mseProvats.has(url)) return;
+            mseProvats.add(url);
+
+            const quiEra = currentStation;
+            let res;
+            try { res = await fetch(url); } catch (e) { return; }
+            const tipus = (res.headers.get('content-type') || '').toLowerCase();
+            // Només MP3: és el que el MediaSource admet arreu on ho hem mirat.
+            if (tipus.indexOf('mpeg') < 0 && tipus.indexOf('mp3') < 0) {
+                try { res.body.cancel(); } catch (e) {}
+                return;
+            }
+            if (currentStation !== quiEra) { try { res.body.cancel(); } catch (e) {} return; }
+
+            try {
+                const ms = new MediaSource();
+                const s = { ms, sb: null, lector: res.body.getReader(), aturat: false };
+                mseSessio = s;
+
+                const vol = audio.volume, mut = audio.muted;
+                audio.src = URL.createObjectURL(ms);
+                audio.volume = vol; audio.muted = mut;
+
+                await new Promise(r => ms.addEventListener('sourceopen', r, { once: true }));
+                if (s.aturat || currentStation !== quiEra) { aturaMSE(); return; }
+
+                s.sb = ms.addSourceBuffer('audio/mpeg');
+                audio.play().catch(() => {});
+                bombaMSE(s);
+            } catch (e) {
+                aturaMSE();
+                // Si el rodeig falla, tornem al camí de sempre.
+                if (currentStation === quiEra) loadCandidate();
+            }
+        }
+
+        /** Va passant el flux al reproductor, i esborra el que ja ha sonat. */
+        async function bombaMSE(s) {
+            const lliure = () => new Promise(r => {
+                if (!s.sb || !s.sb.updating) return r();
+                s.sb.addEventListener('updateend', r, { once: true });
+            });
+            try {
+                while (!s.aturat) {
+                    const { done, value } = await s.lector.read();
+                    if (done || s.aturat) break;
+                    await lliure();
+                    if (s.aturat) break;
+
+                    // Un directe no s'acaba mai: sense escurçar-lo, la memòria
+                    // creixeria fins que el navegador digués prou.
+                    try {
+                        const b = s.sb.buffered;
+                        if (b.length && audio.currentTime - b.start(0) > 45) {
+                            s.sb.remove(0, audio.currentTime - 20);
+                            await lliure();
+                        }
+                    } catch (e) {}
+
+                    try { s.sb.appendBuffer(value); } catch (e) {
+                        if (e && e.name === 'QuotaExceededError') {
+                            try {
+                                s.sb.remove(0, Math.max(0, audio.currentTime - 6));
+                                await lliure();
+                                s.sb.appendBuffer(value);
+                            } catch (e2) { break; }
+                        } else break;
+                    }
+                    await lliure();
+                }
+            } catch (e) {}
+        }
 
         /** Si no arriba senyal, val la pena tornar-ho a lligar tot abans de plegar. */
         function reparaAnalitzador() {
@@ -3666,6 +3779,8 @@
 
         function playStation(station, autoplay = true) {
             if (externaSona() && externaSt !== station) tancaExterna(true);
+            aturaMSE();
+            mseProvats.clear();
             currentStation = station;
             vizMutDes = 0; vizIntents = 0;
             localStorage.setItem('radioLast', JSON.stringify(station));
