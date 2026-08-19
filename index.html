@@ -246,17 +246,17 @@
            movia una ombra que quedava invisible als dos extrems del cicle. */
         @keyframes respiraBoto {
             0%, 100% { transform: scale(1); }
-            50%      { transform: scale(1.06); }
+            50%      { transform: scale(1.045); }
         }
         @keyframes auraBoto {
             0%, 100% { box-shadow: inset 0 1px 0 rgba(255,255,255,.30),
                                    inset 0 -1px 0 rgba(0,0,0,.40),
                                    0 6px 14px rgba(0,0,0,.45),
-                                   0 0 9px 1px var(--aura); }
+                                   0 0 7px 1px var(--aura); }
             50%      { box-shadow: inset 0 1px 0 rgba(255,255,255,.30),
                                    inset 0 -1px 0 rgba(0,0,0,.40),
                                    0 6px 14px rgba(0,0,0,.45),
-                                   0 0 26px 7px var(--aura); }
+                                   0 0 19px 4px var(--aura); }
         }
         #btn-play {
             --aura: rgba(34, 197, 94, .85);
@@ -2887,16 +2887,16 @@
             eps.forEach(ep => {
                 const esAquest = currentStation && currentStation.url_resolved === ep.url;
                 const epFav = favPods.some(f => f.id === 'ep:' + ep.url);
-                const sonantAra = esAquest && isPlaying;
                 const quan = ep.date ? new Date(ep.date) : null;
                 const data = quan && !isNaN(quan) ? quan.toLocaleDateString(currentLang, { day: 'numeric', month: 'short', year: 'numeric' }) : '';
                 const card = document.createElement('div');
                 card.className = 'station-card flex items-center p-3 rounded-xl border bg-black/40 cursor-pointer gap-3 '
                     + (esAquest ? 'sonant' : 'border-white/5 hover:border-white/20 hover:bg-white/5');
+                // El botó de play que hi havia aquí feia el mateix que clicar la
+                // fila i repetia el que ja diu el marc encès. La caràtula tampoc
+                // hi va: ja presideix la capçalera, i cent còpies carreguen la
+                // vista. Queda el títol, la data i el cor, com a les emissores.
                 card.innerHTML = `
-                    <span class="btn-so ${sonantAra ? 'btn-so-pause sona' : 'btn-so-play'} w-9 h-9 flex items-center justify-center shrink-0">
-                        <span class="glif"><svg class="g-play" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="3.6" stroke-linejoin="round" stroke-linecap="round"><path d="M9.7 6.6 17.8 12l-8.1 5.4z"/></svg><svg class="g-pausa" viewBox="0 0 24 24" fill="currentColor"><rect x="7.2" y="5" width="3.9" height="14" rx="1.95"/><rect x="12.9" y="5" width="3.9" height="14" rx="1.95"/></svg></span>
-                    </span>
                     <div class="flex-1 overflow-hidden pointer-events-none">
                         <div class="text-sm font-semibold text-white truncate">${ep.title}</div>
                         <div class="text-xs text-white/40 truncate">${data}${ep.dur ? ' · ' + ep.dur : ''}</div>
@@ -2908,13 +2908,9 @@
                     e.stopPropagation();
                     toggleFavorite(epComFavorit(pod, ep));
                 });
-                card.querySelector('.btn-so').addEventListener('click', e => {
-                    e.stopPropagation();
-                    // Si és el que ja sona, aquest botó fa de pausa i de represa.
-                    if (esAquest) togglePlay(); else playEpisode(pod, ep);
-                });
                 card.addEventListener('click', e => {
-                    if (e.target.closest('.btn-so') || e.target.closest('.fav-btn')) return;
+                    if (e.target.closest('.fav-btn')) return;
+                    // Si és el que ja sona, tornar-hi el pausa i el reprèn.
                     if (esAquest) togglePlay(); else playEpisode(pod, ep);
                 });
                 list.appendChild(card);
