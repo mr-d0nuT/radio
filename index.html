@@ -958,7 +958,10 @@
             'https://enacast.com/radiovic/streams/HD': 'https://streaming.enacast.com/radiovic56.mp3',
             'https://enacast.com/radiovilablareix/streams/SD': 'https://streaming.enacast.com/radiovilablareix56.mp3',
             'https://enacast.com/rtvelvendrell/streams/SD': 'https://streaming.enacast.com/rtvelvendrell56.mp3',
-            'https://enacast.com/tarragonaradio/streams/SD': 'https://relay.stream.enacast-cloud.com:40007/tarragona56.mp3'
+            'https://enacast.com/tarragonaradio/streams/SD': 'https://relay.stream.enacast-cloud.com:40007/tarragona56.mp3',
+            // Digital hits: la mateixa emissora té un altre servidor, aquest
+            // amb https i CORS, que a més permet veure l'equalitzador.
+            'https://digitalhits.frilab.com:8000/digitalhits': 'https://dhits.frilab.com:8443/dhits'
         };
 
         const needsWorkaround = s => location.protocol === 'https:' && /^http:/i.test(s.url_resolved || '');
@@ -2020,6 +2023,8 @@
 
         let lastFrame = 0, lastBass = -1;
 
+        let vizMutDes = 0;   // des de quan l'analitzador no rep res
+
         function drawViz(now) {
             vizRAF = requestAnimationFrame(drawViz);
 
@@ -2028,7 +2033,21 @@
             if (now - lastFrame < 33) return;
             lastFrame = now || 0;
 
-            const live = vizLive();
+            // Hi ha navegadors —Safari, sobretot— que reprodueixen un stream
+            // sense CORS encara que l'haguem demanat amb CORS. Se sent, però a
+            // l'analitzador no hi arriba res, i abans això deixava una franja
+            // negra i buida a sota del llistat. Si fa tres segons que no hi ha
+            // senyal, la pleguem; si torna, torna la tira.
+            const base = vizLive();
+            if (base) {
+                analyser.getByteFrequencyData(freqData);
+                let suma = 0;
+                for (let i = 0; i < freqData.length; i += 8) suma += freqData[i];
+                if (suma > 0) vizMutDes = 0;
+                else if (!vizMutDes) vizMutDes = now || Date.now();
+            }
+            const live = base && !(vizMutDes && (now || Date.now()) - vizMutDes > 3000);
+
             const targets = vizTargets();
 
             const mv = document.getElementById('main-view');
@@ -2042,8 +2061,6 @@
                 if (lastBass !== 0) { lastBass = 0; document.documentElement.style.setProperty('--bass', 0); }
                 return;
             }
-
-            analyser.getByteFrequencyData(freqData);
 
             // Els greus mouen l'ambient de tota l'app. Ho actualitzem només quan
             // canvia de debò: cada canvi repinta una capa enorme i desenfocada.
@@ -2402,16 +2419,21 @@
             Object.keys(health).forEach(k => {
                 if (!(ara - health[k] < OFFLINE_TTL)) { delete health[k]; netejat = true; }
             });
-            if (netejat) localStorage.setItem('radioHealth', JSON.stringify(health));
+            if (netejat) desaSalut();
         })();
 
         const esOffline = s => !!(s && health[s.stationuuid] && Date.now() - health[s.stationuuid] < OFFLINE_TTL);
 
+        function desaSalut() {
+            try { localStorage.setItem('radioHealth', JSON.stringify(health)); } catch (e) {}
+        }
+
         function marcaOffline(s, caiguda) {
             if (!s || !s.stationuuid) return;
             if (caiguda) health[s.stationuuid] = Date.now();
+            else if (!health[s.stationuuid]) return;   // no hi havia res a treure
             else delete health[s.stationuuid];
-            localStorage.setItem('radioHealth', JSON.stringify(health));
+            desaSalut();
         }
 
         /** Nom normalitzat: sense accents, ni majúscules, ni espais de sobra. */
@@ -2958,6 +2980,7 @@
 
         function playStation(station, autoplay = true) {
             currentStation = station;
+            vizMutDes = 0;
             localStorage.setItem('radioLast', JSON.stringify(station));
 
             byId('player-title').innerText = station.name;
@@ -3071,11 +3094,11 @@
         el.addEventListener('waiting', () => setStatus('loading'));
         el.addEventListener('playing', () => {
             clearCandTimer();
-            marcaOffline(currentStation, false);
             isPlaying = true;
             setPlayIcons(true);
             setStatus('live');
             setLiveIndicators(true);
+            marcaOffline(currentStation, false);
             if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
             if (veientEmissores() && allStations.length > 0) renderStations(allStations);
             refreshEpisodes();
