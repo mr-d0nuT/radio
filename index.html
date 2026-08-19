@@ -2196,6 +2196,38 @@
 
         let vizMutDes = 0, vizIntents = 0;   // des de quan no arriba res, i quantes reparacions duem
 
+        /**
+         * Espectre de mentida, per quan el navegador no ens deixa llegir el de
+         * debò. Barreja d'ones lentes i ràpides amb els aguts sempre més
+         * baixos, que és com es comporta la música de veritat: així no es nota
+         * un patró que es repeteix.
+         */
+        function omplePintat(t) {
+            if (!freqData) freqData = new Uint8Array(512);
+            if (!timeData) timeData = new Uint8Array(1024);
+
+            const n = freqData.length;
+            const pols = 0.72 + 0.28 * Math.pow(Math.abs(Math.sin(t / 480)), 3);
+            for (let i = 0; i < n; i++) {
+                const f = i / n;
+                const caiguda = Math.pow(1 - f, 1.5);
+                const a = Math.sin(t / 240 + i * 0.31);
+                const b = Math.sin(t / 910 + i * 0.07);
+                const c = Math.sin(t / 1730 - i * 0.19);
+                const v = caiguda * pols * (0.52 + 0.28 * a + 0.14 * b + 0.06 * c);
+                freqData[i] = Math.max(0, Math.min(255, v * 300));
+            }
+
+            const m = timeData.length;
+            for (let i = 0; i < m; i++) {
+                const x = i / m;
+                const o = Math.sin(x * 34 + t / 190) * 0.55
+                        + Math.sin(x * 91 + t / 70) * 0.25
+                        + Math.sin(x * 7 + t / 430) * 0.20;
+                timeData[i] = Math.max(0, Math.min(255, 128 + o * pols * 92));
+            }
+        }
+
         function drawViz(now) {
             vizRAF = requestAnimationFrame(drawViz);
 
@@ -2204,26 +2236,32 @@
             if (now - lastFrame < 33) return;
             lastFrame = now || 0;
 
-            // Hi ha navegadors —Safari, sobretot— que reprodueixen un stream
-            // sense CORS encara que l'haguem demanat amb CORS. Se sent, però a
-            // l'analitzador no hi arriba res, i abans això deixava una franja
-            // negra i buida a sota del llistat. Si fa tres segons que no hi ha
-            // senyal, la pleguem; si torna, torna la tira.
             const ara = now || Date.now();
+
+            // Camí normal: llegim l'espectre de debò.
             const base = vizLive();
+            let senyal = false;
             if (base) {
                 analyser.getByteFrequencyData(freqData);
                 let suma = 0;
                 for (let i = 0; i < freqData.length; i += 8) suma += freqData[i];
-                if (suma > 0) { vizMutDes = 0; vizIntents = 0; }
+                if (suma > 0) { vizMutDes = 0; vizIntents = 0; senyal = true; }
                 else if (!vizMutDes) vizMutDes = ara;
                 else if (ara - vizMutDes > 2000 && vizIntents < 2) {
                     vizIntents++; vizMutDes = ara; reparaAnalitzador();
                 }
             }
-            // Només pleguem la tira quan ja hem intentat adobar-ho i tot i així
-            // no arriba res: així no deixem mai una franja negra i buida.
-            const live = base && !(vizMutDes && ara - vizMutDes > 2000 && vizIntents >= 2);
+
+            // Quan no hi ha manera de llegir el so —Safari a Mac no fa passar
+            // per la Web Audio API l'àudio d'un altre domini, i les emissores
+            // sense CORS no s'hi poden ni connectar— tornem a on érem al
+            // principi: una animació decorativa. No diu què sona, però la tira
+            // no es queda morta mentre hi ha música.
+            const rendits = !base || (vizMutDes && ara - vizMutDes > 2000 && vizIntents >= 2);
+            const decoratiu = !senyal && rendits && sonaAra();
+            if (decoratiu) omplePintat(ara);
+
+            const live = senyal || decoratiu;
 
             const targets = vizTargets();
 
@@ -2506,7 +2544,7 @@
 
                 } else {
                     // Oscil·loscopi: la forma d'ona real, no l'espectre.
-                    analyser.getByteTimeDomainData(timeData);
+                    if (senyal) analyser.getByteTimeDomainData(timeData);
                     const n = timeData.length;
                     const pas = usableW / (n - 1);
                     const cy = h / 2;
@@ -2941,7 +2979,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-19d';
+        const VERSIO = '2026-08-19e';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
