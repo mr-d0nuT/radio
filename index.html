@@ -2270,7 +2270,7 @@
             // que la tira s'omple amb un dibuix, per no quedar-se morta.
             // El camí de sempre no dona res: engeguem l'anàlisi a part. La
             // reproducció no es toca; només baixem el mateix so per mesurar-lo.
-            if (!senyal && sonaAra() && !apart && vizMutDes && ara - vizMutDes > 400) analitzaApart();
+            if (!senyal && sonaAra() && !apart && vizMutDes && ara - vizMutDes > 150) analitzaApart();
 
             // El dibuix inventat, només si ni tan sols l'anàlisi a part
             // aconsegueix res —quan el navegador no ens deixa ni baixar el flux.
@@ -2997,7 +2997,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-19o';
+        const VERSIO = '2026-08-19q';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3675,7 +3675,10 @@
                 a.mut.connect(audioCtx.destination);
 
                 let cua = new Uint8Array(0);
-                a.quan = audioCtx.currentTime + 0.25;
+                // Una mica de marge perquè una descàrrega lenta no obri un
+                // forat al gràfic. Poc: si en posem massa, l'equalitzador
+                // aniria endarrerit respecte del que se sent.
+                a.quan = audioCtx.currentTime + 0.3;
 
                 while (!a.aturat) {
                     const { done, value } = await a.lector.read();
@@ -3686,7 +3689,7 @@
                     cua = junt;
                     // El primer tros, curt, perquè el gràfic arrenqui de
                     // seguida; després més llargs, que van més fins.
-                    if (cua.length < (a.quantsTrossos ? 40000 : 14000)) continue;
+                    if (cua.length < (a.quantsTrossos ? 40000 : 7000)) continue;
 
                     const tall = tallaFotograma(cua);
                     if (!tall.llest) { cua = tall.resta; continue; }
@@ -3700,11 +3703,17 @@
                     const font = audioCtx.createBufferSource();
                     font.buffer = buf;
                     font.connect(a.analitzador);
-                    // Si ens hem quedat enrere, tornem al present: val més un
-                    // salt al gràfic que anar arrossegant retard.
-                    if (a.quan < audioCtx.currentTime) a.quan = audioCtx.currentTime + 0.05;
-                    font.start(a.quan);
-                    a.quan += buf.duration;
+                    // Si ens hem quedat enrere, tornem al present.
+                    if (a.quan < audioCtx.currentTime) a.quan = audioCtx.currentTime + 0.12;
+                    // Cada tros descodificat porta un silenci de fàbrica al
+                    // principi i al final —el marge del compressor—. Encadenats
+                    // tal qual, això seria un sotrac cada dos segons i mig. Ens
+                    // el saltem i encavalquem una mica els trossos: com que no
+                    // se sent, l'encavalcament no fa cap mal i el gràfic no es
+                    // queda mai sense dades.
+                    const salt = Math.min(0.03, buf.duration * 0.04);
+                    font.start(a.quan, salt);
+                    a.quan += buf.duration - salt * 2;
                     a.senyal = Date.now();
                     a.quantsTrossos = (a.quantsTrossos || 0) + 1;
                 }
