@@ -2941,6 +2941,8 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
+        const VERSIO = '2026-08-19c';
+
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
 
@@ -3486,14 +3488,22 @@
         // l'analitzador. Serveix per saber què passa en un navegador que no
         // tenim a mà, en comptes d'endevinar-ho.
         // ============================================================
-        if (/[?&]diag=1/.test(location.search)) {
+        // A la finestra del Dock no hi ha adreça per escriure-hi: el manifest
+        // sempre obre l'arrel i el paràmetre es perd. Per això també s'obre
+        // amb Ctrl+Alt+D.
+        let diagRetol = null;
+        function mostraDiag() {
+            if (diagRetol) { diagRetol.remove(); diagRetol = null; return; }
             const r = document.createElement('div');
             r.style.cssText = 'position:fixed;left:8px;top:8px;z-index:99999;max-width:92vw;'
                 + 'padding:8px 10px;border-radius:8px;background:rgba(0,0,0,.88);color:#7CFC98;'
                 + 'font:11px/1.45 ui-monospace,Menlo,monospace;white-space:pre;pointer-events:none;'
                 + 'border:1px solid rgba(124,252,152,.35)';
-            document.addEventListener('DOMContentLoaded', () => document.body.appendChild(r));
-            setInterval(() => {
+            diagRetol = r;
+            if (document.body) document.body.appendChild(r);
+            else document.addEventListener('DOMContentLoaded', () => document.body.appendChild(r));
+            const bat = setInterval(() => {
+                if (!diagRetol) { clearInterval(bat); return; }
                 let mx = 0;
                 if (analyser && freqData) {
                     try {
@@ -3511,9 +3521,18 @@
                   + 'analitzador' + (analyser ? ' sí' : ' NO') + '\n'
                   + 'context    ' + (audioCtx ? audioCtx.state : '—') + '\n'
                   + 'senyal max ' + mx + '   reparacions ' + vizIntents + '\n'
-                  + 'tira       ' + (vizLive() ? 'viva' : 'plegada');
+                  + 'tira       ' + (vizLive() ? 'viva' : 'plegada') + '\n'
+                  + 'versió     ' + VERSIO;
             }, 500);
         }
+
+        if (/[?&]diag=1/.test(location.search)) mostraDiag();
+        document.addEventListener('keydown', e => {
+            if (e.ctrlKey && e.altKey && (e.key === 'd' || e.key === 'D')) {
+                e.preventDefault();
+                mostraDiag();
+            }
+        });
 
         /** Si no arriba senyal, val la pena tornar-ho a lligar tot abans de plegar. */
         function reparaAnalitzador() {
