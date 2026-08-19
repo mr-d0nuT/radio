@@ -2985,7 +2985,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-19h';
+        const VERSIO = '2026-08-19i';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3498,7 +3498,13 @@
 
         function connectAnalyser() {
             try {
-                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    // Si s'adorm sol mentre hi ha música, el tornem a engegar.
+                    audioCtx.onstatechange = () => {
+                        if (audioCtx.state === 'suspended' && sonaAra()) despertaContext();
+                    };
+                }
 
                 // L'analitzador es crea a part del context. Abans anaven junts,
                 // i n'hi havia prou amb una errada perquè no es tornés a crear
@@ -3521,12 +3527,21 @@
             }
         }
 
-        /** El navegador té els contextos adormits fins que l'usuari toca res. */
+        /**
+         * El navegador té els contextos adormits fins que l'usuari toca res, i
+         * l'iPhone els adorm quan bloqueges la pantalla. Això últim tallava el
+         * so dels podcasts: com que sí que passen pel motor d'àudio, quan el
+         * motor s'atura callen. Les emissores seguien perquè no hi passaven, i
+         * ara que hi passaran també, els passaria igual. Per això el despertem
+         * sempre que s'adormi amb música engegada.
+         */
         function despertaContext() {
             if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
         }
         ['pointerdown', 'keydown', 'touchstart'].forEach(ev =>
             document.addEventListener(ev, despertaContext, { passive: true }));
+        document.addEventListener('visibilitychange', despertaContext);
+        window.addEventListener('pageshow', despertaContext);
 
         // ============================================================
         // DIAGNÒSTIC
