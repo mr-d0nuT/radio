@@ -2933,7 +2933,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-19w';
+        const VERSIO = '2026-08-19x';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3532,10 +3532,8 @@
                   + 'senyal max ' + mx + '   reparacions ' + vizIntents + '\n'
                   + 'tira       ' + (vizLive() ? 'viva' : 'plegada') + '\n'
                   + 'anàlisi    ' + (apart ? ((apart.analitzador ? 'en marxa' : 'obrint')
-                                     + ' t:' + (apart.quantsTrossos || 0)
-                                     + ' fallades:' + (apart.fallades || 0)
-                                     + ' forats:' + (apart.forats || 0)
-                                     + ' pista:' + (apart.pista || 0).toFixed(1) + 's') : 'no cal') + '\n'
+                                     + ' fitxers:' + (apart.fets || 0)
+                                     + ' cua:' + (apart.pendents || []).length) : 'no cal') + '\n'
                   + 'captura    ' + (typeof audio.captureStream === 'function' ? 'sí'
                                    : (typeof audio.mozCaptureStream === 'function' ? 'moz' : 'NO')) + '\n'
                   + 'MSE mp3    ' + (window.MediaSource && MediaSource.isTypeSupported
@@ -3579,7 +3577,8 @@
             apart = null;
             a.aturat = true;
             try { a.lector.cancel(); } catch (e) {}
-            try { (a.fonts || []).forEach(f => { try { f.stop(); } catch (e) {} }); } catch (e) {}
+            try { (a.reps || []).forEach(el => { try { el.pause(); el.removeAttribute('src'); } catch (e) {} }); } catch (e) {}
+            try { (a.urls || []).forEach(u => { try { URL.revokeObjectURL(u); } catch (e) {} }); } catch (e) {}
             try { a.mut.disconnect(); } catch (e) {}
         }
 
@@ -3598,29 +3597,35 @@
             const url = audio.currentSrc;
             if (!url || url.indexOf('blob:') === 0) return;
 
-            const a = { url, aturat: false, senyal: 0, quan: 0, fonts: [] };
+            const a = { url, aturat: false, senyal: 0, pendents: [], urls: [], fets: 0 };
             apart = a;
             try {
                 const res = await fetch(url);
                 if (!res.body || a.aturat) { aturaApart(); return; }
                 a.lector = res.body.getReader();
 
-                // Analitzador propi, i un guany a zero perquè el gràfic corri
-                // sense que se senti res: el so bo ja surt per l'altra banda.
                 a.analitzador = audioCtx.createAnalyser();
                 a.analitzador.fftSize = 1024;
                 a.analitzador.smoothingTimeConstant = 0.75;
                 a.mut = audioCtx.createGain();
-                a.mut.gain.value = 0;
+                a.mut.gain.value = 0;          // no s'ha de sentir: el so bo va a part
                 a.analitzador.connect(a.mut);
                 a.mut.connect(audioCtx.destination);
 
-                let cua = new Uint8Array(0);
-                // Una mica de marge perquè una descàrrega lenta no obri un
-                // forat al gràfic. Poc: si en posem massa, l'equalitzador
-                // aniria endarrerit respecte del que se sent.
-                a.quan = audioCtx.currentTime + 0.15;
+                // Dos reproductors que es van rellevant, perquè mentre un acaba
+                // l'altre ja ha començat i l'anàlisi no es queda mai en blanc.
+                a.reps = [new Audio(), new Audio()];
+                a.reps.forEach(el => {
+                    el.preload = 'auto';
+                    audioCtx.createMediaElementSource(el).connect(a.analitzador);
+                    el.addEventListener('ended', () => serveixApart(a));
+                    el.addEventListener('timeupdate', () => {
+                        // Quan a aquest li queda un sospir, engeguem l'altre.
+                        if (el.duration && el.duration - el.currentTime < 0.35) serveixApart(a);
+                    });
+                });
 
+                let cua = new Uint8Array(0);
                 while (!a.aturat) {
                     const { done, value } = await a.lector.read();
                     if (done || a.aturat) break;
@@ -3628,82 +3633,47 @@
                     const junt = new Uint8Array(cua.length + value.length);
                     junt.set(cua, 0); junt.set(value, cua.length);
                     cua = junt;
-                    // Quant so tenim ja encarrilat per endavant. D'això depèn
-                    // tot: si esperem a ajuntar molts bytes mentre la pista
-                    // s'acaba, el gràfic es queda sense res i cau. Quan anem
-                    // justos, descodifiquem de seguida amb el poc que hi hagi;
-                    // quan hi ha marge, trossos més grans, que surten més fins.
-                    const pista = a.quan - audioCtx.currentTime;
-                    a.pista = pista;
 
-                    // El servidor envia més de pressa que el temps real: en
-                    // connectar deixa anar una ràfega, i si ho descodifiquéssim
-                    // tot acabaríem amb quinze segons encarrilats i el gràfic
-                    // aniria quinze segons endarrerit del que se sent.
-                    //
-                    // Abans ho arreglava aturant el que hi havia pendent i
-                    // reprogramant més endavant, i això era justament el que
-                    // obria els forats: un buit d'un segon i mig cada vegada.
-                    // Ara, quan anem sobrats, simplement deixem passar el que
-                    // arriba: el so ja encarrilat continua sonant sense un sol
-                    // tall, i quan la pista baixa tornem a agafar el fil, ja al
-                    // dia amb el directe.
-                    if (pista > 2.2) {
-                        a.sobrer = (a.sobrer || 0) + cua.length;
-                        cua = new Uint8Array(0);
-                        continue;
-                    }
-                    const calen = pista < 1.0 ? 4000
-                                : pista < 2.0 ? 12000
-                                : pista < 3.0 ? 24000 : 40000;
-                    if (cua.length < calen) continue;
-
+                    // Trossos d'uns quatre segons: prou llargs perquè el rellevat
+                    // sigui còmode i prou curts per no anar endarrerits.
+                    if (cua.length < 64000) continue;
                     const tall = tallaFotograma(cua);
                     if (!tall.llest) { cua = tall.resta; continue; }
-
-                    let buf;
-                    try { buf = await audioCtx.decodeAudioData(tall.llest.slice().buffer); }
-                    catch (e) {
-                        // Llençar-lo obria un forat de dos segons al gràfic.
-                        // El guardem i ho tornem a provar amb més dades: sovint
-                        // només li faltava el final d'un fotograma. Si ni amb
-                        // 400 kB va, allò no és àudio i el deixem anar.
-                        a.fallades = (a.fallades || 0) + 1;
-                        if (cua.length < 400000) continue;
-                        cua = tall.resta;
-                        continue;
-                    }
                     cua = tall.resta;
-                    if (a.aturat) break;
 
-                    const font = audioCtx.createBufferSource();
-                    font.buffer = buf;
-                    font.connect(a.analitzador);
-                    a.fonts.push(font);
-                    if (a.fonts.length > 16) a.fonts = a.fonts.slice(-10);
-                    // Saltar al present a la mínima obria un forat cada
-                    // vegada. Només ho fem si anem de debò endarrerits.
-                    if (a.quan < audioCtx.currentTime - 0.05) {
-                        a.quan = audioCtx.currentTime + 0.05;
-                        a.forats = (a.forats || 0) + 1;
-                    }
-                    // Cada tros descodificat porta un silenci de fàbrica al
-                    // principi i al final —el marge del compressor—. Encadenats
-                    // tal qual, això seria un sotrac cada dos segons i mig. Ens
-                    // el saltem i encavalquem una mica els trossos: com que no
-                    // se sent, l'encavalcament no fa cap mal i el gràfic no es
-                    // queda mai sense dades.
-                    const salt = Math.min(0.03, buf.duration * 0.04);
-                    font.start(a.quan, salt);
-                    a.quan += buf.duration - salt * 2;
-                    a.senyal = Date.now();
-                    a.quantsTrossos = (a.quantsTrossos || 0) + 1;
+                    // Si ja en tenim de sobra esperant, deixem passar aquest: el
+                    // directe no s'atura i val més anar al dia que acumular.
+                    if (a.pendents.length > 2) { a.sobrer = (a.sobrer || 0) + tall.llest.length; continue; }
+
+                    const u = URL.createObjectURL(new Blob([tall.llest], { type: 'audio/mpeg' }));
+                    a.pendents.push(u);
+                    a.urls.push(u);
+                    if (a.urls.length > 6) { try { URL.revokeObjectURL(a.urls.shift()); } catch (e) {} }
+                    serveixApart(a);
                 }
             } catch (e) {}
             if (apart === a) aturaApart();
         }
 
-        /** Si no arriba senyal, val la pena tornar-ho a lligar tot abans de plegar. */        /** Si no arriba senyal, val la pena tornar-ho a lligar tot abans de plegar. */
+        /**
+         * Dona el tros següent al reproductor que estigui lliure. Safari no
+         * descodifica retalls d'un flux —ho hem vist: totes les provatures
+         * fallaven— però sí que reprodueix i deixa analitzar un fitxer, que és
+         * per això que als podcasts l'equalitzador sí que hi funciona. Doncs
+         * li donem fitxers.
+         */
+        function serveixApart(a) {
+            if (!a || a.aturat || !a.pendents.length) return;
+            const lliure = a.reps.find(el => el.paused || el.ended || !el.src);
+            if (!lliure) return;
+            const u = a.pendents.shift();
+            try {
+                lliure.src = u;
+                lliure.play().then(() => { a.fets++; a.senyal = Date.now(); }).catch(() => {});
+            } catch (e) {}
+        }
+
+        /** Si no arriba senyal, val la pena tornar-ho a lligar tot abans de plegar. */        /** Si no arriba senyal, val la pena tornar-ho a lligar tot abans de plegar. */        /** Si no arriba senyal, val la pena tornar-ho a lligar tot abans de plegar. */
         function reparaAnalitzador() {
             despertaContext();
             if (audioCors) connectAnalyser();
