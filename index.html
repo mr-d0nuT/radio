@@ -65,6 +65,27 @@
         }
         .disc.gira { animation: spin-slow 4s linear infinite; }
 
+        /* Emissora que ha fallat: apagada i amb un distintiu que la retorna a
+           provar, perquè no quedi bloquejada per sempre. */
+        .offline-badge {
+            flex-shrink: 0; cursor: pointer;
+            font-size: 8px; font-weight: 800; letter-spacing: .08em;
+            padding: 1px 5px; border-radius: 4px;
+            background: rgba(239, 68, 68, .18); color: #ff6b6b;
+            border: 1px solid rgba(239, 68, 68, .5);
+            pointer-events: auto;
+        }
+        .offline-badge:hover { background: rgba(239, 68, 68, .38); color: #fff; }
+
+        /* Apaguem el contingut, no la targeta sencera: així el distintiu
+           vermell conserva tota la seva força i es veu d'un cop d'ull. */
+        .station-card.caiguda { cursor: default; background: rgba(0, 0, 0, .55); }
+        .station-card.caiguda .text-sm { color: rgba(255, 255, 255, .34); }
+        .station-card.caiguda .text-xs > .truncate { color: rgba(255, 255, 255, .22); }
+        .station-card.caiguda .fav-btn { opacity: .3; }
+        .station-card.caiguda img,
+        .station-card.caiguda .disc { filter: grayscale(1); opacity: .3; }
+
         .hidden-app { display: none !important; }
 
         body {
@@ -855,6 +876,20 @@
             ar: { downloading: 'جارٍ تنزيل المحطات…', checking: 'جارٍ البحث عن تحديثات…' }
         };
         Object.keys(LOADING_TEXT).forEach(k => Object.assign(i18nExtra[k], LOADING_TEXT[k]));
+
+        const OFFLINE_TEXT = {
+            es: { offlineTip: 'Ahora mismo no responde. Pulsa aquí para volver a probar.' },
+            ca: { offlineTip: 'Ara mateix no respon. Clica aquí per tornar-ho a provar.' },
+            en: { offlineTip: 'Not responding right now. Click here to try again.' },
+            pt: { offlineTip: 'Agora mesmo não responde. Toca aqui para tentar de novo.' },
+            fr: { offlineTip: 'Ne répond pas pour le moment. Cliquez ici pour réessayer.' },
+            it: { offlineTip: 'Al momento non risponde. Clicca qui per riprovare.' },
+            de: { offlineTip: 'Antwortet gerade nicht. Hier klicken, um es erneut zu versuchen.' },
+            zh: { offlineTip: '目前无响应。点此重试。' },
+            ja: { offlineTip: '現在応答がありません。ここをタップで再試行。' },
+            ar: { offlineTip: 'لا تستجيب حاليًا. اضغط هنا لإعادة المحاولة.' }
+        };
+        Object.keys(OFFLINE_TEXT).forEach(k => Object.assign(i18nExtra[k], OFFLINE_TEXT[k]));
 
         // Nom curt de la capçalera, al costat del dònut.
         const SHORT_TITLE = { es: 'Radio', ca: 'Ràdio', en: 'Radio', pt: 'Rádio', fr: 'Radio', it: 'Radio', de: 'Radio', zh: '广播', ja: 'ラジオ', ar: 'راديو' };
@@ -1657,9 +1692,15 @@
 
             stations.slice(from, to).forEach(station => {
                 const isFav = favorites.some(f => f.stationuuid === station.stationuuid);
-                const isActive = currentStation && currentStation.stationuuid === station.stationuuid;
+                const caiguda = esOffline(station);
+                // Si ha caigut no la mostrem com a sonant, encara que sigui
+                // l'última que hem demanat: el marc palpitant enganyaria.
+                const isActive = !caiguda && currentStation
+                              && currentStation.stationuuid === station.stationuuid;
 
-                const borderStyle = isActive ? 'sonant' : 'border-white/5 hover:border-white/20 hover:bg-white/5';
+                const borderStyle = isActive ? 'sonant'
+                    : caiguda ? 'caiguda border-white/5'
+                    : 'border-white/5 hover:border-white/20 hover:bg-white/5';
                 const heartStyle = isFav ? 'text-[#ff2d55] fill-current' : 'text-white/20 hover:text-white/60';
 
                 const card = document.createElement('div');
@@ -1674,9 +1715,12 @@
                     <div class="w-10 h-10 bg-white/5 rounded-lg flex items-center justify-center shrink-0 border border-white/5 overflow-hidden">
                         ${logoHtml}
                     </div>
-                    <div class="flex-1 overflow-hidden pointer-events-none">
-                        <div class="text-sm font-semibold text-white truncate">${station.name}</div>
-                        <div class="text-xs text-white/40 truncate">${station.country || 'Radio'}</div>
+                    <div class="flex-1 overflow-hidden">
+                        <div class="text-sm font-semibold text-white truncate pointer-events-none">${station.name}</div>
+                        <div class="text-xs text-white/40 truncate flex items-center gap-1.5">
+                            <span class="truncate">${station.country || 'Radio'}</span>
+                            ${caiguda ? `<span class="offline-badge" title="${t().offlineTip}">OFFLINE</span>` : ''}
+                        </div>
                     </div>
                     <button class="fav-btn p-2 rounded-full hover:bg-white/10 transition-colors shrink-0 ${heartStyle}">
                         ${isFav ? ICON.heartOn('w-4 h-4 pointer-events-none') : ICON.heartOff('w-4 h-4 pointer-events-none')}
@@ -1687,7 +1731,14 @@
                 `;
 
                 card.addEventListener('click', (e) => {
-                    if (!e.target.closest('.fav-btn') && !e.target.closest('.del-btn')) playStation(station);
+                    if (e.target.closest('.fav-btn') || e.target.closest('.del-btn')) return;
+                    // Apagada: el clic al distintiu la torna a provar; a la resta
+                    // de la targeta, no fa res, per no repetir la frustració.
+                    if (caiguda) {
+                        if (e.target.closest('.offline-badge')) { marcaOffline(station, false); playStation(station); }
+                        return;
+                    }
+                    playStation(station);
                 });
                 card.querySelector('.fav-btn').addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -2332,6 +2383,37 @@
         }
 
 
+        // ============================================================
+        // SALUT DE LES EMISSORES
+        //
+        // No es pot saber per endavant quines sonaran: provar-les totes seria
+        // impossible (als Estats Units n'hi ha 6.500) i el navegador ni tan
+        // sols pot consultar-les sense CORS. Així que ho aprenem de
+        // l'experiència: la que falla queda marcada i surt apagada. La marca
+        // caduca sola, perquè una emissora caiguda avui pot tornar demà.
+        // ============================================================
+        const OFFLINE_TTL = 3 * 3600e3;
+        let health = {};
+        try { health = JSON.parse(localStorage.getItem('radioHealth') || '{}') || {}; } catch (e) {}
+        // Les marques velles ja no diuen res: fora, perquè el magatzem no creixi.
+        (() => {
+            const ara = Date.now();
+            let netejat = false;
+            Object.keys(health).forEach(k => {
+                if (!(ara - health[k] < OFFLINE_TTL)) { delete health[k]; netejat = true; }
+            });
+            if (netejat) localStorage.setItem('radioHealth', JSON.stringify(health));
+        })();
+
+        const esOffline = s => !!(s && health[s.stationuuid] && Date.now() - health[s.stationuuid] < OFFLINE_TTL);
+
+        function marcaOffline(s, caiguda) {
+            if (!s || !s.stationuuid) return;
+            if (caiguda) health[s.stationuuid] = Date.now();
+            else delete health[s.stationuuid];
+            localStorage.setItem('radioHealth', JSON.stringify(health));
+        }
+
         /** Nom normalitzat: sense accents, ni majúscules, ni espais de sobra. */
         function clauNom(x) {
             return (x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -2862,10 +2944,14 @@
 
             chainFailed = true;
             isPlaying = false;
-            setPlayIcons(false);
-            setLiveIndicators(false);
             // Si emet només per http, encara queda la sortida de la pestanya nova.
             const mixedContent = currentStation && needsWorkaround(currentStation);
+            if (currentStation && !currentStation.episodi && !mixedContent) {
+                marcaOffline(currentStation, true);
+                if (veientEmissores() && allStations.length) renderStations(allStations);
+            }
+            setPlayIcons(false);
+            setLiveIndicators(false);
             setStatus(mixedContent ? 'blocked' : 'error');
             if (mixedContent && candAutoplay) toast(t().openTip);
         }
@@ -2985,6 +3071,7 @@
         el.addEventListener('waiting', () => setStatus('loading'));
         el.addEventListener('playing', () => {
             clearCandTimer();
+            marcaOffline(currentStation, false);
             isPlaying = true;
             setPlayIcons(true);
             setStatus('live');
