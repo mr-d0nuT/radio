@@ -2247,7 +2247,7 @@
 
             // Si el camí normal no dona res, mirem el que hem descodificat a
             // part. És el mateix so, mesurat pel nostre compte.
-            if (!senyal && apart && apart.analitzador) {
+            if (!senyal && apart && apart.analitzador && sonaAra()) {
                 const n = apart.analitzador.frequencyBinCount;
                 if (!apartBrut || apartBrut.length !== n) apartBrut = new Uint8Array(n);
                 if (!freqData || freqData.length !== n) freqData = new Uint8Array(n);
@@ -2933,7 +2933,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-19y';
+        const VERSIO = '2026-08-19z';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3899,6 +3899,9 @@
         });
         el.addEventListener('pause', () => {
             clearCandTimer();
+            // L'anàlisi a part va pel seu compte: si no l'aturem, l'equalitzador
+            // continuaria movent-se amb el so ja en pausa.
+            aturaApart();
             isPlaying = false;
             setPlayIcons(false);
             setLiveIndicators(false);
