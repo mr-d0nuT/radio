@@ -2258,6 +2258,17 @@
             // WebKit amb un directe. Provem de servir-l'hi com un fitxer.
             if (base && !senyal && vizIntents >= 2 && !mseSessio) provaMSE();
 
+            // I si el rodeig tampoc rutlla, no ens hi entestem: el desfem i
+            // tornem al camí de sempre, que almenys sona.
+            if (mseSessio) {
+                if (senyal) mseSessio.viu = ara;
+                else if (!mseSessio.viu) mseSessio.viu = ara;
+                else if (ara - mseSessio.viu > 6000) {
+                    aturaMSE();
+                    loadCandidate();
+                }
+            }
+
             // El dibuix inventat només on llegir el so és impossible: emissores
             // sense CORS, i les que el rodeig tampoc pot salvar (les que no
             // emeten en MP3). Onsevulla que es pugui llegir, es llegeix.
@@ -2985,7 +2996,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-19i';
+        const VERSIO = '2026-08-19k';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3659,7 +3670,10 @@
                 if (s.aturat || currentStation !== quiEra) { aturaMSE(); return; }
 
                 s.sb = ms.addSourceBuffer('audio/mpeg');
-                audio.play().catch(() => {});
+                // Un directe no porta línia de temps: sense mode seqüencial, el
+                // navegador col·loca cada tros on li sembla, sona un instant i
+                // s'encalla.
+                try { s.sb.mode = 'sequence'; } catch (e) {}
                 bombaMSE(s);
             } catch (e) {
                 aturaMSE();
@@ -3691,7 +3705,12 @@
                         }
                     } catch (e) {}
 
-                    try { s.sb.appendBuffer(value); } catch (e) {
+                    try {
+                        s.sb.appendBuffer(value);
+                        s.trossos = (s.trossos || 0) + 1;
+                        // Amb el primer tros a dins ja hi ha què reproduir.
+                        if (s.trossos === 1) audio.play().catch(() => {});
+                    } catch (e) {
                         if (e && e.name === 'QuotaExceededError') {
                             try {
                                 s.sb.remove(0, Math.max(0, audio.currentTime - 6));
@@ -3701,6 +3720,19 @@
                         } else break;
                     }
                     await lliure();
+
+                    // Si es queda encallat però tenim so per endavant, hi
+                    // saltem: val més perdre un instant que emmudir.
+                    try {
+                        const b = s.sb.buffered;
+                        if (b.length) {
+                            const cap = b.end(b.length - 1);
+                            if (audio.readyState < 3 && cap - audio.currentTime > 1.5) {
+                                audio.currentTime = Math.max(b.start(0), cap - 1);
+                                if (audio.paused) audio.play().catch(() => {});
+                            }
+                        }
+                    } catch (e) {}
                 }
             } catch (e) {}
         }
