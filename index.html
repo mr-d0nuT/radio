@@ -929,16 +929,16 @@
         Object.keys(LOADING_TEXT).forEach(k => Object.assign(i18nExtra[k], LOADING_TEXT[k]));
 
         const EXTERN_TEXT = {
-            es: { externClose: 'Cerrar', clearSearch: 'Borrar', externOn: 'Sonando en una ventana aparte', externFront: 'Ver ventana', externBlocked: 'El navegador ha bloqueado la ventana. Permítela y vuelve a probar.' },
-            ca: { externClose: 'Tancar', clearSearch: 'Esborrar', externOn: 'Sonant en una finestra a part', externFront: 'Veure finestra', externBlocked: 'El navegador ha bloquejat la finestra. Permet-la i torna-ho a provar.' },
-            en: { externClose: 'Close', clearSearch: 'Clear', externOn: 'Playing in a separate window', externFront: 'Show window', externBlocked: 'The browser blocked the window. Allow it and try again.' },
-            pt: { externClose: 'Fechar', clearSearch: 'Limpar', externOn: 'A tocar numa janela à parte', externFront: 'Ver janela', externBlocked: 'O navegador bloqueou a janela. Permite-a e tenta de novo.' },
-            fr: { externClose: 'Fermer', clearSearch: 'Effacer', externOn: 'En lecture dans une fenêtre à part', externFront: 'Voir la fenêtre', externBlocked: 'Le navigateur a bloqué la fenêtre. Autorisez-la et réessayez.' },
-            it: { externClose: 'Chiudi', clearSearch: 'Cancella', externOn: 'In riproduzione in una finestra a parte', externFront: 'Mostra finestra', externBlocked: 'Il browser ha bloccato la finestra. Consentila e riprova.' },
-            de: { externClose: 'Schließen', clearSearch: 'Löschen', externOn: 'Läuft in einem eigenen Fenster', externFront: 'Fenster zeigen', externBlocked: 'Der Browser hat das Fenster blockiert. Erlaube es und versuche es erneut.' },
-            zh: { externClose: '关闭', clearSearch: '清除', externOn: '正在独立窗口中播放', externFront: '显示窗口', externBlocked: '浏览器拦截了窗口。请允许后重试。' },
-            ja: { externClose: '閉じる', clearSearch: 'クリア', externOn: '別ウィンドウで再生中', externFront: 'ウィンドウを表示', externBlocked: 'ブラウザがウィンドウをブロックしました。許可して再試行してください。' },
-            ar: { externClose: 'إغلاق', clearSearch: 'مسح', externOn: 'قيد التشغيل في نافذة منفصلة', externFront: 'إظهار النافذة', externBlocked: 'حظر المتصفح النافذة. اسمح بها وأعد المحاولة.' }
+            es: { shows: 'programas', externClose: 'Cerrar', clearSearch: 'Borrar', externOn: 'Sonando en una ventana aparte', externFront: 'Ver ventana', externBlocked: 'El navegador ha bloqueado la ventana. Permítela y vuelve a probar.' },
+            ca: { shows: 'programes', externClose: 'Tancar', clearSearch: 'Esborrar', externOn: 'Sonant en una finestra a part', externFront: 'Veure finestra', externBlocked: 'El navegador ha bloquejat la finestra. Permet-la i torna-ho a provar.' },
+            en: { shows: 'shows', externClose: 'Close', clearSearch: 'Clear', externOn: 'Playing in a separate window', externFront: 'Show window', externBlocked: 'The browser blocked the window. Allow it and try again.' },
+            pt: { shows: 'programas', externClose: 'Fechar', clearSearch: 'Limpar', externOn: 'A tocar numa janela à parte', externFront: 'Ver janela', externBlocked: 'O navegador bloqueou a janela. Permite-a e tenta de novo.' },
+            fr: { shows: 'émissions', externClose: 'Fermer', clearSearch: 'Effacer', externOn: 'En lecture dans une fenêtre à part', externFront: 'Voir la fenêtre', externBlocked: 'Le navigateur a bloqué la fenêtre. Autorisez-la et réessayez.' },
+            it: { shows: 'programmi', externClose: 'Chiudi', clearSearch: 'Cancella', externOn: 'In riproduzione in una finestra a parte', externFront: 'Mostra finestra', externBlocked: 'Il browser ha bloccato la finestra. Consentila e riprova.' },
+            de: { shows: 'Sendungen', externClose: 'Schließen', clearSearch: 'Löschen', externOn: 'Läuft in einem eigenen Fenster', externFront: 'Fenster zeigen', externBlocked: 'Der Browser hat das Fenster blockiert. Erlaube es und versuche es erneut.' },
+            zh: { shows: '个节目', externClose: '关闭', clearSearch: '清除', externOn: '正在独立窗口中播放', externFront: '显示窗口', externBlocked: '浏览器拦截了窗口。请允许后重试。' },
+            ja: { shows: '番組', externClose: '閉じる', clearSearch: 'クリア', externOn: '別ウィンドウで再生中', externFront: 'ウィンドウを表示', externBlocked: 'ブラウザがウィンドウをブロックしました。許可して再試行してください。' },
+            ar: { shows: 'برامج', externClose: 'إغلاق', clearSearch: 'مسح', externOn: 'قيد التشغيل في نافذة منفصلة', externFront: 'إظهار النافذة', externBlocked: 'حظر المتصفح النافذة. اسمح بها وأعد المحاولة.' }
         };
         Object.keys(EXTERN_TEXT).forEach(k => Object.assign(i18nExtra[k], EXTERN_TEXT[k]));
 
@@ -2767,34 +2767,103 @@
             allPodcasts = items;
             const list = byId('stations-list');
             list.innerHTML = '';
+            if (ullDesc) { ullDesc.disconnect(); ullDesc = null; }
+            descCua.length = 0;
             if (!items.length) {
                 list.innerHTML = `<div class="col-span-full text-center text-white/50 py-10">${t().noStations}</div>`;
                 return;
             }
+            // Moltes cases pengen deu seccions del mateix programa: "El món a
+            // RAC1 - Bits", "- Cuinetes", "- Entrevista"... i el llistat se'n
+            // va en repeticions. Les que comparteixen encapçalament es
+            // recullen sota un sol títol que s'obre i es tanca.
+            const talls = /\s+[-–—:]\s+/;
+            const perArrel = {};
             items.forEach(pod => {
-                const esFav = favPods.some(f => f.id === pod.id);
-                const card = document.createElement('div');
-                card.className = 'station-card flex items-center p-3 rounded-xl border border-white/5 bg-black/40 cursor-pointer gap-3 hover:border-white/20 hover:bg-white/5';
-                card.innerHTML = `
+                const m = talls.exec(pod.name);
+                const arrel = m ? pod.name.slice(0, m.index).trim() : null;
+                if (!arrel || arrel.length < 3) return;
+                (perArrel[arrel] = perArrel[arrel] || []).push(pod);
+            });
+
+            const agrupats = {};
+            const entrades = [];
+            Object.keys(perArrel).forEach(arrel => {
+                if (perArrel[arrel].length < 2) return;
+                perArrel[arrel].forEach(p => { agrupats[p.id] = 1; });
+                entrades.push({ grup: true, nom: arrel, fills: perArrel[arrel] });
+            });
+            items.forEach(pod => { if (!agrupats[pod.id]) entrades.push({ grup: false, pod }); });
+            entrades.sort((a, b) => (a.grup ? a.nom : a.pod.name).trim()
+                .localeCompare((b.grup ? b.nom : b.pod.name).trim(), undefined, { sensitivity: 'base' }));
+
+            entrades.forEach(e => {
+                if (!e.grup) { list.appendChild(targetaPodcast(e.pod, e.pod.name)); return; }
+
+                const obert = grupsOberts.has(e.nom);
+                const capsa = document.createElement('div');
+                capsa.className = 'contents';
+
+                const pare = document.createElement('div');
+                pare.className = 'station-card col-span-full flex items-center p-3 rounded-xl border border-white/10 bg-white/[.04] cursor-pointer gap-3 hover:border-white/25 hover:bg-white/[.07]';
+                pare.innerHTML = `
                     <div class="w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-white/5 border border-white/5">
-                        ${pod.art ? `<img src="${pod.art}" loading="lazy" decoding="async" class="w-full h-full object-cover">`
-                                  : `<span class="text-white/40 font-bold">${pod.name.charAt(0)}</span>`}
+                        ${e.fills[0].art ? `<img src="${e.fills[0].art}" loading="lazy" decoding="async" class="w-full h-full object-cover">`
+                                         : `<span class="text-white/40 font-bold">${escapaText(e.nom.charAt(0))}</span>`}
                     </div>
                     <div class="flex-1 overflow-hidden pointer-events-none">
-                        <div class="text-sm font-semibold text-white truncate">${pod.name}</div>
-                        <div class="text-xs text-white/40 truncate flex items-center gap-1.5">
-                            ${marcaOrigen(pod.origen)}<span class="truncate">${pod.artist}</span>
-                        </div>
-                        ${pod.descripcio ? `<div class="dues-linies text-[11px] leading-snug text-white/35 mt-0.5">${escapaText(pod.descripcio)}</div>` : ''}
+                        <div class="text-sm font-semibold text-white truncate">${escapaText(e.nom)}</div>
+                        <div class="text-[11px] text-white/40">${e.fills.length} ${t().shows}</div>
                     </div>
-                    <button class="fav-btn p-2 rounded-full hover:bg-white/10 transition-colors shrink-0 ${esFav ? 'text-[#ff2d55] fill-current' : 'text-white/20 hover:text-white/60'}">
-                        ${esFav ? ICON.heartOn('w-4 h-4 pointer-events-none') : ICON.heartOff('w-4 h-4 pointer-events-none')}
-                    </button>
-                    <svg class="w-4 h-4 text-white/25 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>`;
-                card.querySelector('.fav-btn').addEventListener('click', e => { e.stopPropagation(); toggleFavorite(pod); });
-                card.addEventListener('click', e => { if (!e.target.closest('.fav-btn')) openEpisodes(pod); });
-                list.appendChild(card);
+                    <svg class="caret w-4 h-4 text-white/35 shrink-0 transition-transform ${obert ? 'rotate-90' : ''}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>`;
+
+                const fillera = document.createElement('div');
+                fillera.className = 'col-span-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pl-6' + (obert ? '' : ' hidden-app');
+                e.fills.forEach(f => {
+                    const m = talls.exec(f.name);
+                    const curt = m ? f.name.slice(m.index + m[0].length).trim() : f.name;
+                    fillera.appendChild(targetaPodcast(f, curt || f.name));
+                });
+
+                pare.addEventListener('click', () => {
+                    const ara = fillera.classList.toggle('hidden-app');
+                    pare.querySelector('.caret').classList.toggle('rotate-90', !ara);
+                    if (ara) grupsOberts.delete(e.nom); else grupsOberts.add(e.nom);
+                });
+
+                capsa.appendChild(pare);
+                capsa.appendChild(fillera);
+                list.appendChild(capsa);
             });
+        }
+
+        const grupsOberts = new Set();
+
+        /** Una targeta de podcast. El nom es passa a part: dins d'un grup, els
+            fills es mostren sense l'encapçalament que ja diu el pare. */
+        function targetaPodcast(pod, nomVisible) {
+            const esFav = favPods.some(f => f.id === pod.id);
+            const card = document.createElement('div');
+            card.className = 'station-card flex items-center p-3 rounded-xl border border-white/5 bg-black/40 cursor-pointer gap-3 hover:border-white/20 hover:bg-white/5';
+            card.innerHTML = `
+                <div class="w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-white/5 border border-white/5">
+                    ${pod.art ? `<img src="${pod.art}" loading="lazy" decoding="async" class="w-full h-full object-cover">`
+                              : `<span class="text-white/40 font-bold">${escapaText(nomVisible.charAt(0))}</span>`}
+                </div>
+                <div class="flex-1 overflow-hidden pointer-events-none">
+                    <div class="text-sm font-semibold text-white truncate">${escapaText(nomVisible)}</div>
+                    <div class="pod-desc dues-linies text-[11px] leading-snug text-white/40 mt-0.5${pod.descripcio ? '' : ' hidden-app'}">${escapaText(pod.descripcio || '')}</div>
+                </div>
+                <button class="fav-btn p-2 rounded-full hover:bg-white/10 transition-colors shrink-0 ${esFav ? 'text-[#ff2d55] fill-current' : 'text-white/20 hover:text-white/60'}">
+                    ${esFav ? ICON.heartOn('w-4 h-4 pointer-events-none') : ICON.heartOff('w-4 h-4 pointer-events-none')}
+                </button>
+                <svg class="w-4 h-4 text-white/25 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>`;
+            card.querySelector('.fav-btn').addEventListener('click', e => { e.stopPropagation(); toggleFavorite(pod); });
+            card.addEventListener('click', e => { if (!e.target.closest('.fav-btn')) openEpisodes(pod); });
+            // La descripció que no ve amb la llista, la demanem al seu canal, i
+            // només quan la targeta arriba a la pantalla.
+            if (!pod.descripcio) vigilaDesc(card, pod);
+            return card;
         }
 
         /** Un episodi també es pot guardar sol, amb el seu propi identificador. */
@@ -2805,15 +2874,6 @@
         }
 
         /** Un distintiu petit que diu d'on surt el programa. */
-        function marcaOrigen(origen) {
-            if (origen === 'spotify') return '<svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="#1DB954">'
-                + '<path d="M12 2a10 10 0 100 20 10 10 0 000-20zm4.6 14.4a.8.8 0 01-1.1.3c-3-1.8-6.7-2.2-11.1-1.2a.8.8 0 11-.3-1.5c4.8-1.1 8.9-.6 12.2 1.4.4.2.5.7.3 1zm1.2-2.8a1 1 0 01-1.3.3c-3.4-2.1-8.6-2.7-12.6-1.5a1 1 0 11-.6-1.9c4.6-1.4 10.3-.7 14.2 1.7.5.3.6.9.3 1.4zm.1-2.9C14 8.4 7.7 8.2 4.2 9.2a1.2 1.2 0 11-.7-2.3C7.6 5.7 14.5 6 18.9 8.6a1.2 1.2 0 01-1 2.1z"/></svg>';
-            if (origen === 'rss') return '<svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="#f59e0b">'
-                + '<circle cx="6.2" cy="17.8" r="2.2"/><path d="M4 10.3v3a6.7 6.7 0 016.7 6.7h3A9.7 9.7 0 004 10.3z"/>'
-                + '<path d="M4 4v3a13 13 0 0113 13h3A16 16 0 004 4z"/></svg>';
-            return '<svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="#a1a1aa">'
-                + '<path d="M12 2a10 10 0 00-2.2 19.8c0-.6 0-1.6.2-2.3l1-4.3a3.6 3.6 0 01-.3-1.5c0-1.4.8-2.5 1.9-2.5.9 0 1.3.7 1.3 1.5 0 .9-.6 2.2-.9 3.5-.2 1 .5 1.9 1.6 1.9 1.9 0 3.2-2.4 3.2-5.3 0-2.2-1.5-3.8-4.1-3.8-3 0-4.8 2.2-4.8 4.6 0 .9.3 1.5.7 2 .1.2.2.3.1.5l-.2.9c0 .3-.2.4-.5.2-1.3-.6-1.9-2.1-1.9-3.9 0-2.9 2.4-6.3 7.3-6.3 3.9 0 6.5 2.8 6.5 5.8 0 4-2.2 7-5.5 7-1.1 0-2.1-.6-2.5-1.3l-.7 2.7c-.2.9-.8 2-1.2 2.7A10 10 0 1012 2z"/></svg>';
-        }
 
         /**
          * Busca a Apple i, a més, a dos directoris oberts de canals (fyyd i
@@ -2866,6 +2926,157 @@
         const ITUNES_NS = 'http://www.itunes.com/dtds/podcast-1.0.dtd';
 
         let ultimCanal = null;
+
+        // ============================================================
+        // DESCRIPCIONS QUE NO VENEN AMB LA LLISTA
+        //
+        // El rànquing d'Apple porta un resum de cada programa, però la cerca
+        // —d'on surt la llista catalana— no en porta cap, i cap altre directori
+        // coneix aquests podcasts: fyyd, preguntant-li per "La Sotana", contesta
+        // amb un podcast alemany de música. L'única font fiable és el canal del
+        // mateix programa.
+        //
+        // Baixar-los sencers seria absurd: pesen entre 200 i 500 kB i només en
+        // volem dues línies. Però la descripció del canal va abans del primer
+        // episodi, així que llegim el començament i tallem la descàrrega tan
+        // bon punt la tenim: uns quants kB en comptes de mig mega.
+        // ============================================================
+        let podDesc = {};
+        try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
+
+        function desaPodDesc() {
+            try {
+                const claus = Object.keys(podDesc);
+                if (claus.length > 500) claus.slice(0, claus.length - 400).forEach(k => delete podDesc[k]);
+                localStorage.setItem('podDesc', JSON.stringify(podDesc));
+            } catch (e) {}
+        }
+
+        function treuCdata(x) {
+            return (x || '').replace(/<!\[CDATA\[/g, '').replace(/\]\]>/g, '');
+        }
+
+        async function descripcioDelCanal(url) {
+            const res = await fetch(url);
+            if (!res.body || !res.body.getReader) return netejaHtml(treuCdata(
+                (/<description[^>]*>([\s\S]*?)<\/description>/i.exec(await res.text()) || [])[1] || ''));
+
+            const lector = res.body.getReader();
+            const trossos = [];
+            let total = 0, buf = '';
+
+            // Molts canals van en ISO-8859-1. Donar per fet que tot és UTF-8
+            // omplia les descripcions de rombes.
+            const codi = (() => {
+                const hdr = /charset=([\w-]+)/i.exec(res.headers.get('content-type') || '');
+                return hdr ? hdr[1].toLowerCase() : null;
+            })();
+            const decodifica = () => {
+                const cru = new Uint8Array(total);
+                let n = 0;
+                trossos.forEach(t => { cru.set(t, n); n += t.length; });
+                const cap = new TextDecoder('utf-8').decode(cru.slice(0, 400));
+                const decl = /encoding=["']([\w-]+)["']/i.exec(cap);
+                const quin = (decl ? decl[1] : codi || 'utf-8').toLowerCase();
+                const prova = c => { try { return new TextDecoder(c).decode(cru); } catch (e) { return null; } };
+                return { txt: prova(quin) || '', segona: () => prova(quin.indexOf('utf') === 0 ? 'windows-1252' : 'utf-8') };
+            };
+
+            const treu = () => {
+                // Només el tros del canal: la primera <description> de després
+                // del primer <item> ja seria la d'un episodi.
+                const tall = buf.search(/<item[\s>]/i);
+                const zona = tall > -1 ? buf.slice(0, tall) : buf;
+                const m = /<description[^>]*>([\s\S]*?)<\/description>/i.exec(zona)
+                       || /<itunes:summary[^>]*>([\s\S]*?)<\/itunes:summary>/i.exec(zona);
+                return { text: m ? m[1] : null, passat: tall > -1 };
+            };
+
+            try {
+                while (total < 120000) {
+                    const { done, value } = await lector.read();
+                    if (done) break;
+                    trossos.push(value); total += value.length;
+                    const d = decodifica();
+                    buf = d.txt;
+                    const r = treu();
+                    if (r.text !== null) {
+                        // Si el text que hem tret porta rombes, la declaració
+                        // mentia: el tornem a llegir amb l'altra codificació.
+                        let net = r.text;
+                        if (net.indexOf('\uFFFD') > -1) {
+                            const alt = d.segona();
+                            if (alt && alt.indexOf('\uFFFD') < 0) {
+                                buf = alt;
+                                const r2 = treu();
+                                if (r2.text !== null) net = r2.text;
+                            }
+                        }
+                        return netejaHtml(treuCdata(net));
+                    }
+                    if (r.passat) break;
+                }
+            } finally {
+                try { lector.cancel(); } catch (e) {}
+            }
+            return '';
+        }
+
+        // De tres en tres: ni deixem l'usuari esperant ni ofeguem la xarxa.
+        const descCua = [];
+        let descActives = 0;
+
+        function encuaDesc(pod, node) {
+            if (!pod.feed || podDesc[pod.feed] === '') return;
+            if (podDesc[pod.feed]) { mostraDesc(node, podDesc[pod.feed], pod.name); return; }
+            descCua.push({ pod, node });
+            mouCuaDesc();
+        }
+
+        function mouCuaDesc() {
+            while (descActives < 3 && descCua.length) {
+                const { pod, node } = descCua.shift();
+                descActives++;
+                descripcioDelCanal(pod.feed)
+                    .then(txt => {
+                        podDesc[pod.feed] = txt || '';
+                        desaPodDesc();
+                        if (txt) { pod.descripcio = txt; mostraDesc(node, txt, pod.name); }
+                    })
+                    .catch(() => { podDesc[pod.feed] = ''; })
+                    .then(() => { descActives--; mouCuaDesc(); });
+            }
+        }
+
+        let ullDesc = null;
+        function vigilaDesc(card, pod) {
+            if (!('IntersectionObserver' in window)) return;
+            if (!ullDesc) {
+                ullDesc = new IntersectionObserver(entrades => {
+                    entrades.forEach(e => {
+                        if (!e.isIntersecting) return;
+                        ullDesc.unobserve(e.target);
+                        const p = e.target.__pod;
+                        if (p) encuaDesc(p, e.target.querySelector('.pod-desc'));
+                    });
+                }, { rootMargin: '200px' });
+            }
+            card.__pod = pod;
+            ullDesc.observe(card);
+        }
+
+        function mostraDesc(node, txt, nom) {
+            if (!node || !node.isConnected || !txt) return;
+            // Hi ha canals on la descripció només repeteix el títol ("Podcasts
+            // del programa El món a RAC1 - Bits"). Si en treure el nom no queda
+            // res per explicar, val més no ensenyar-la.
+            if (nom) {
+                const resta = clauNom(txt).split(clauNom(nom)).join('').replace(/[^a-z0-9]+/g, '');
+                if (resta.length < 25) return;
+            }
+            node.textContent = txt;
+            node.classList.remove('hidden-app');
+        }
 
         /** Text de fora dins d'un innerHTML: sempre escapat. */
         function escapaText(txt) {
