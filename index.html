@@ -2292,7 +2292,8 @@
             // El camí de sempre no dona res: engeguem l'anàlisi a part. La
             // reproducció no es toca; només baixem el mateix so per mesurar-lo.
             if (!senyal && sonaAra() && !apart && !jaHiHaviaSenyal
-                && vizMutDes && ara - vizMutDes > 400) analitzaApart();
+                && vizMutDes && ara - vizMutDes > 400
+                && apartFallades < 5 && Date.now() - apartUltimIntent > 3000) analitzaApart();
 
             // El dibuix inventat, només si ni tan sols l'anàlisi a part
             // aconsegueix res —quan el navegador no ens deixa ni baixar el flux.
@@ -2954,7 +2955,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-20j';
+        const VERSIO = '2026-08-20k';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3447,6 +3448,10 @@
             const wasVol = audio.volume, wasMuted = audio.muted;
             try { audio.pause(); audio.removeAttribute('src'); audio.load(); } catch (e) {}
 
+            // La font del vell queda enganxada a l'analitzador per sempre si no
+            // la desconnectem: cada canvi de mode en deixava una de viva.
+            try { const vella = fonts.get(audio); if (vella) vella.disconnect(); } catch (e) {}
+
             audio = new Audio();
             if (wantCors) audio.crossOrigin = 'anonymous';
             audio.volume = wasVol;
@@ -3593,20 +3598,37 @@
         // Costa una mica més de dades, i per això només s'engega on cal.
         // ============================================================
         let apart = null;              // { url, lector, aturat, analitzador, senyal }
+        let apartFallades = 0, apartUltimIntent = 0;
 
-        function aturaApart() {
-            if (!apart) return;
-            const a = apart;
-            apart = null;
+        /**
+         * Atura una anàlisi. Cal dir-li QUINA: abans mirava sempre la global i,
+         * si mentrestant se n'havia engegat una de nova, matava la nova en lloc
+         * de la vella. Pitjor encara, la connexió de la vella no es tancava mai:
+         * cada episodi deixava un socket obert i, al cap de sis, Safari ja no
+         * resolia cap petició més i això es quedava penjat per sempre.
+         */
+        function aturaApart(quina) {
+            const a = quina || apart;
+            if (!a || a.__mort) return;
+            a.__mort = true;
             a.aturat = true;
-            try { clearInterval(a.vigilant); } catch (e) {}
+            if (apart === a) apart = null;
 
-            try { a.lector.cancel(); } catch (e) {}
-            try { (a.reps || []).forEach(el => { try { el.pause(); el.removeAttribute('src'); } catch (e) {} }); } catch (e) {}
-            try {
-                (a.pendents || []).forEach(u => { try { URL.revokeObjectURL(u); } catch (e) {} });
-                (a.reps || []).forEach(el => { if (el.__url) { try { URL.revokeObjectURL(el.__url); } catch (e) {} } });
-            } catch (e) {}
+            try { clearInterval(a.vigilant); } catch (e) {}
+            try { if (a.avort) a.avort.abort(); } catch (e) {}
+            try { if (a.lector) a.lector.cancel(); } catch (e) {}
+
+            // Desmuntar de debò: sense el load() WebKit no allibera el recurs, i
+            // sense desconnectar els nodes, l'element i la seva font es
+            // referencien mútuament i no es recullen mai. Cada reengegada en
+            // deixava un parell viu fins a esgotar els descodificadors.
+            try { (a.fonts || []).forEach(f => { try { f.disconnect(); } catch (e) {} }); } catch (e) {}
+            try { (a.reps || []).forEach(el => {
+                try { el.pause(); el.removeAttribute('src'); el.load(); } catch (e) {}
+                if (el.__url) { try { URL.revokeObjectURL(el.__url); } catch (e) {} el.__url = null; }
+            }); } catch (e) {}
+            try { (a.pendents || []).forEach(u => { try { URL.revokeObjectURL(u); } catch (e) {} }); } catch (e) {}
+            try { a.analitzador.disconnect(); } catch (e) {}
             try { a.mut.disconnect(); } catch (e) {}
         }
 
@@ -3625,11 +3647,17 @@
             const url = audio.currentSrc;
             if (!url || url.indexOf('blob:') === 0) return;
 
-            const a = { url, aturat: false, senyal: 0, pendents: [], fets: 0 };
+            const a = { url, aturat: false, senyal: 0, pendents: [], fets: 0, fonts: [] };
+            a.avort = (typeof AbortController === 'function') ? new AbortController() : null;
             apart = a;
+            apartUltimIntent = Date.now();
             try {
-                const res = await fetch(url);
-                if (!res.body || a.aturat) { aturaApart(); return; }
+                const res = await fetch(url, a.avort ? { signal: a.avort.signal } : undefined);
+                // Una resposta d'error també té cos: sense mirar-ho, ens
+                // menjàvem la pàgina d'error com si fos àudio i tornàvem a
+                // començar de seguida, en bucle.
+                if (!res.ok) { try { res.body.cancel(); } catch (e) {} throw new Error('HTTP ' + res.status); }
+                if (!res.body || a.aturat) { try { res.body.cancel(); } catch (e) {} aturaApart(a); return; }
                 a.lector = res.body.getReader();
 
                 a.analitzador = audioCtx.createAnalyser();
@@ -3647,7 +3675,11 @@
                 a.reps = [new Audio(), new Audio()];
                 a.reps.forEach(el => {
                     el.preload = 'auto';
-                    audioCtx.createMediaElementSource(el).connect(a.analitzador);
+                    // Desem la font: si no, no hi ha manera de desconnectar-la
+                    // i el parell element-node no es recull mai.
+                    const font = audioCtx.createMediaElementSource(el);
+                    font.connect(a.analitzador);
+                    a.fonts.push(font);
                     el.addEventListener('ended', () => serveixApart(a));
                     el.addEventListener('timeupdate', () => serveixApart(a));
                 });
@@ -3682,7 +3714,13 @@
                     // coincidència amb el que se sent.
                     if (cua.length < 16000) continue;
                     const tall = tallaFotograma(cua);
-                    if (!tall.llest) { cua = tall.resta; continue; }
+                    if (!tall.llest) {
+                        // Blindatge: si mai no hi trobéssim cap fotograma, això
+                        // creixeria sense sostre i cada lectura rellegiria tot
+                        // el que s'hi ha acumulat.
+                        cua = cua.length > 200000 ? cua.slice(-32000) : tall.resta;
+                        continue;
+                    }
                     cua = tall.resta;
 
                     // En connectar, el servidor deixa anar una ràfega perquè el
@@ -3713,7 +3751,11 @@
                     serveixApart(a);
                 }
             } catch (e) {}
-            if (apart === a) aturaApart();
+            // Si aquesta instància no ha arribat a servir cap tros, compta com
+            // a errada: sense fre, drawViz ho tornava a provar cinquanta cops
+            // per segon i cada volta deixava més brossa enrere.
+            if (!a.fets) apartFallades++; else apartFallades = 0;
+            aturaApart(a);
         }
 
         /**
@@ -3852,6 +3894,7 @@
             if (externaSona() && externaSt !== station) tancaExterna(true);
             aturaApart();
             jaHiHaviaSenyal = false;
+            apartUltim = 0; apartFallades = 0; apartUltimIntent = 0;
             currentStation = station;
             vizMutDes = 0; vizIntents = 0;
             localStorage.setItem('radioLast', JSON.stringify(station));
