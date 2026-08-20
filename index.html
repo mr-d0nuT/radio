@@ -2295,6 +2295,19 @@
                 && vizMutDes && ara - vizMutDes > 400
                 && apartFallades < 5 && Date.now() - apartUltimIntent > 3000) analitzaApart();
 
+            // Si l'anàlisi fa tres segons que no dona res tot i estar sonant, no
+            // hi ha manera d'adobar-la des d'aquí: el que s'espatlla viu dins
+            // del reproductor mateix i no es pot reiniciar per codi. L'única
+            // sortida és llençar-ho tot i començar de nou amb reproductors
+            // acabats de fer. Abans ens rendíem al segon intent i ja no
+            // tornàvem mai.
+            if (apart && apart.analitzador && sonaAra()
+                && apartUltim && ara - apartUltim > 3000) {
+                aturaApart(apart);
+                apartUltimIntent = 0;
+                apartUltim = 0;
+            }
+
             // El dibuix inventat, només si ni tan sols l'anàlisi a part
             // aconsegueix res —quan el navegador no ens deixa ni baixar el flux.
             const rendits = !apart || (apart.senyal && Date.now() - apart.senyal > 8000);
@@ -2955,7 +2968,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-20k';
+        const VERSIO = '2026-08-20l';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3514,7 +3527,13 @@
         }
         ['pointerdown', 'keydown', 'touchstart'].forEach(ev =>
             document.addEventListener(ev, despertaContext, { passive: true }));
-        document.addEventListener('visibilitychange', despertaContext);
+        document.addEventListener('visibilitychange', () => {
+            despertaContext();
+            // Amb la pàgina amagada, el navegador atura el dibuix i alenteix
+            // els temporitzadors: en tornar, el rellevat pot haver quedat
+            // trencat. Ho refem des de zero en comptes de donar-ho per mort.
+            if (!document.hidden && apart) { aturaApart(apart); apartUltimIntent = 0; apartUltim = 0; }
+        });
         window.addEventListener('pageshow', despertaContext);
 
         // ============================================================
