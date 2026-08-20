@@ -2968,7 +2968,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-20l';
+        const VERSIO = '2026-08-20m';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3577,10 +3577,9 @@
                   + 'senyal max ' + mx + '   reparacions ' + vizIntents + '\n'
                   + 'tira       ' + (vizLive() ? 'viva' : 'plegada') + '\n'
                   + 'anàlisi    ' + (apart ? ((apart.analitzador ? 'en marxa' : 'obrint')
-                                     + ' fitxers:' + (apart.fets || 0)
-                                     + ' cua:' + (apart.pendents || []).length
-                                     + ' secs:' + (apart.buits || 0)
-                                     + ' pitjor:' + (((apart.pitjorBuit || 0) / 1000).toFixed(1)) + 's') : 'no cal') + '\n'
+                                     + ' trossos:' + (apart.fets || 0)
+                                     + ' pista:' + ((apart.quan || 0) - audioCtx.currentTime).toFixed(1) + 's'
+                                     + (apart.error ? ' ERROR:' + apart.error : '')) : 'no cal') + '\n'
                   + 'captura    ' + (typeof audio.captureStream === 'function' ? 'sí'
                                    : (typeof audio.mozCaptureStream === 'function' ? 'moz' : 'NO')) + '\n'
                   + 'MSE mp3    ' + (window.MediaSource && MediaSource.isTypeSupported
@@ -3616,16 +3615,28 @@
         //
         // Costa una mica més de dades, i per això només s'engega on cal.
         // ============================================================
-        let apart = null;              // { url, lector, aturat, analitzador, senyal }
-        let apartFallades = 0, apartUltimIntent = 0;
+        let apart = null;
+        let apartFallades = 0, apartUltimIntent = 0, mpgCarregat = null;
 
-        /**
-         * Atura una anàlisi. Cal dir-li QUINA: abans mirava sempre la global i,
-         * si mentrestant se n'havia engegat una de nova, matava la nova en lloc
-         * de la vella. Pitjor encara, la connexió de la vella no es tancava mai:
-         * cada episodi deixava un socket obert i, al cap de sis, Safari ja no
-         * resolia cap petició més i això es quedava penjat per sempre.
-         */
+        /** Porta el descodificador, un sol cop i només on fa falta. */
+        function carregaMpg() {
+            if (mpgCarregat) return mpgCarregat;
+            mpgCarregat = new Promise((si, no) => {
+                const sc = document.createElement('script');
+                // Com a mòdul, i no per caprici: el descodificador declara una
+                // variable seva que es diu `t`, i la nostra funció de
+                // traduccions també. Carregat com a script normal, el navegador
+                // avortava el fitxer sencer amb un error de sintaxi. Com a
+                // mòdul cadascú té el seu àmbit i no es trepitgen.
+                sc.type = 'module';
+                sc.src = 'mpg123.js';
+                sc.onload = () => si(window['mpg123-decoder']);
+                sc.onerror = () => no(new Error('no s\'ha pogut carregar el descodificador'));
+                document.head.appendChild(sc);
+            });
+            return mpgCarregat;
+        }
+
         function aturaApart(quina) {
             const a = quina || apart;
             if (!a || a.__mort) return;
@@ -3633,196 +3644,94 @@
             a.aturat = true;
             if (apart === a) apart = null;
 
-            try { clearInterval(a.vigilant); } catch (e) {}
             try { if (a.avort) a.avort.abort(); } catch (e) {}
             try { if (a.lector) a.lector.cancel(); } catch (e) {}
-
-            // Desmuntar de debò: sense el load() WebKit no allibera el recurs, i
-            // sense desconnectar els nodes, l'element i la seva font es
-            // referencien mútuament i no es recullen mai. Cada reengegada en
-            // deixava un parell viu fins a esgotar els descodificadors.
-            try { (a.fonts || []).forEach(f => { try { f.disconnect(); } catch (e) {} }); } catch (e) {}
-            try { (a.reps || []).forEach(el => {
-                try { el.pause(); el.removeAttribute('src'); el.load(); } catch (e) {}
-                if (el.__url) { try { URL.revokeObjectURL(el.__url); } catch (e) {} el.__url = null; }
-            }); } catch (e) {}
-            try { (a.pendents || []).forEach(u => { try { URL.revokeObjectURL(u); } catch (e) {} }); } catch (e) {}
+            try { (a.sons || []).forEach(f => { try { f.stop(); } catch (e) {} try { f.disconnect(); } catch (e) {} }); } catch (e) {}
+            try { if (a.dec) a.dec.free(); } catch (e) {}
             try { a.analitzador.disconnect(); } catch (e) {}
-            try { a.mut.disconnect(); } catch (e) {}
         }
 
-        /** Retalla pel començament d'un fotograma, per no partir-ne cap pel mig. */
-        function tallaFotograma(dades) {
-            for (let i = dades.length - 2; i > 64; i--) {
-                if (dades[i] === 0xFF && (dades[i + 1] & 0xE0) === 0xE0) {
-                    return { llest: dades.subarray(0, i), resta: dades.slice(i) };
-                }
-            }
-            return { llest: null, resta: dades };
-        }
-
+        /**
+         * Descodifiquem el so nosaltres i el programem al rellotge d'àudio.
+         *
+         * Abans ho fèiem donant-li trossos com si fossin fitxers a dos
+         * reproductors que es rellevaven, i era una lluita perduda: cada canvi
+         * de font fa que WebKit refaci el reproductor sencer per dins, els
+         * trossos solts d'MP3 no saben dir quant duren, i el relleu obria un
+         * forat que es veia. La causa de fons és que Safari només deixa
+         * analitzar l'àudio que passa pel seu camí progressiu —a MediaSource,
+         * el node retorna literalment zeros—, i això és un error obert d'Apple
+         * des del 2017.
+         *
+         * Ara ens el saltem del tot: el flux es descodifica amb un
+         * descodificador d'MP3 propi i el so surt en brut, ja mesurable. Sense
+         * reproductors, sense fitxers, sense relleus i sense res que es pugui
+         * encallar.
+         */
         async function analitzaApart() {
             if (apart || !audioCtx || !currentStation) return;
             const url = audio.currentSrc;
             if (!url || url.indexOf('blob:') === 0) return;
 
-            const a = { url, aturat: false, senyal: 0, pendents: [], fets: 0, fonts: [] };
+            const a = { url, aturat: false, senyal: 0, sons: [], fets: 0, quan: 0 };
             a.avort = (typeof AbortController === 'function') ? new AbortController() : null;
             apart = a;
             apartUltimIntent = Date.now();
+
             try {
+                const mod = await carregaMpg();
+                if (a.aturat) { aturaApart(a); return; }
+                a.dec = new mod.MPEGDecoder();
+                await a.dec.ready;
+                if (a.aturat) { aturaApart(a); return; }
+
                 const res = await fetch(url, a.avort ? { signal: a.avort.signal } : undefined);
-                // Una resposta d'error també té cos: sense mirar-ho, ens
-                // menjàvem la pàgina d'error com si fos àudio i tornàvem a
-                // començar de seguida, en bucle.
                 if (!res.ok) { try { res.body.cancel(); } catch (e) {} throw new Error('HTTP ' + res.status); }
                 if (!res.body || a.aturat) { try { res.body.cancel(); } catch (e) {} aturaApart(a); return; }
                 a.lector = res.body.getReader();
 
                 a.analitzador = audioCtx.createAnalyser();
                 a.analitzador.fftSize = 1024;
-                // Ben poc allisat: aquest passa per un rellevat de fitxers i
-                // qualsevol suavitzat de més el deixava pla.
                 a.analitzador.smoothingTimeConstant = 0.2;
-                a.mut = audioCtx.createGain();
-                a.mut.gain.value = 0;          // no s'ha de sentir: el so bo va a part
-                a.analitzador.connect(a.mut);
-                a.mut.connect(audioCtx.destination);
+                // L'analitzador no ha d'arribar a la sortida: així no se sent
+                // res i el so bo continua sortint pel camí de sempre, intacte.
+                a.quan = audioCtx.currentTime + 0.15;
 
-                // Dos reproductors que es van rellevant, perquè mentre un acaba
-                // l'altre ja ha començat i l'anàlisi no es queda mai en blanc.
-                a.reps = [new Audio(), new Audio()];
-                a.reps.forEach(el => {
-                    el.preload = 'auto';
-                    // Desem la font: si no, no hi ha manera de desconnectar-la
-                    // i el parell element-node no es recull mai.
-                    const font = audioCtx.createMediaElementSource(el);
-                    font.connect(a.analitzador);
-                    a.fonts.push(font);
-                    el.addEventListener('ended', () => serveixApart(a));
-                    el.addEventListener('timeupdate', () => serveixApart(a));
-                });
-
-                // Els avisos del reproductor poden arribar tard o no arribar.
-                // Aquest vigilant mira deu vegades per segon si tot s'ha aturat
-                // amb feina pendent, i ho torna a engegar.
-                a.vigilant = setInterval(() => {
-                    if (a.aturat) return;
-                    const sec = a.reps.every(el => el.paused || el.ended) && !a.pendents.length;
-                    if (sec) {
-                        if (!a.secDes) a.secDes = Date.now();
-                        a.buits = (a.buits || 0) + 1;
-                    } else if (a.secDes) {
-                        const quant = Date.now() - a.secDes;
-                        if (quant > (a.pitjorBuit || 0)) a.pitjorBuit = quant;
-                        a.secDes = 0;
-                    }
-                    serveixApart(a);
-                }, 60);
-
-                let cua = new Uint8Array(0);
                 while (!a.aturat) {
                     const { done, value } = await a.lector.read();
                     if (done || a.aturat) break;
 
-                    const junt = new Uint8Array(cua.length + value.length);
-                    junt.set(cua, 0); junt.set(value, cua.length);
-                    cua = junt;
+                    const r = await a.dec.decode(value);
+                    if (a.aturat) break;
+                    if (!r || !r.samplesDecoded) continue;
 
-                    // Trossos d'un segon: com més curts, més fina és la
-                    // coincidència amb el que se sent.
-                    if (cua.length < 16000) continue;
-                    const tall = tallaFotograma(cua);
-                    if (!tall.llest) {
-                        // Blindatge: si mai no hi trobéssim cap fotograma, això
-                        // creixeria sense sostre i cada lectura rellegiria tot
-                        // el que s'hi ha acumulat.
-                        cua = cua.length > 200000 ? cua.slice(-32000) : tall.resta;
-                        continue;
-                    }
-                    cua = tall.resta;
+                    // Massa so encarrilat vol dir que el gràfic aniria endarrerit
+                    // del que se sent: deixem passar el sobrant.
+                    if (a.quan - audioCtx.currentTime > 3) { a.sobrer = (a.sobrer || 0) + 1; continue; }
 
-                    // En connectar, el servidor deixa anar una ràfega perquè el
-                    // so arrenqui de seguida, i el reproductor comença just
-                    // des d'allà. Si nosaltres la llencéssim per posar-nos al
-                    // dia amb el directe, aniríem per davant del que se sent:
-                    // ben sincronitzat vol dir seguir la mateixa línia de temps
-                    // que ell, des del mateix punt. Per això no descartem res
-                    // fins que la cua és de debò massa llarga.
-                    if (a.pendents.length >= 8) {
-                        a.sobrer = (a.sobrer || 0) + tall.llest.length;
-                        continue;
-                    }
+                    const buf = audioCtx.createBuffer(r.channelData.length, r.samplesDecoded, r.sampleRate);
+                    for (let c = 0; c < r.channelData.length; c++) buf.copyToChannel(r.channelData[c], c);
 
-                    // Cada tros s'endú mig segon del que ja portava l'anterior.
-                    // Sense això no hi ha manera de solapar-los: en fabriquem un
-                    // per segon i cada un dura un segon just, o sigui que en el
-                    // moment del relleu no hi ha res que cobreixi el canvi. Amb
-                    // la meitat repetida, mentre un acaba el següent ja fa
-                    // estona que sona.
-                    const peça = a.cua_ant && a.cua_ant.length
-                        ? (() => { const j = new Uint8Array(a.cua_ant.length + tall.llest.length);
-                                   j.set(a.cua_ant, 0); j.set(tall.llest, a.cua_ant.length); return j; })()
-                        : tall.llest;
-                    a.cua_ant = tall.llest.slice(Math.max(0, tall.llest.length - 8000));
+                    const font = audioCtx.createBufferSource();
+                    font.buffer = buf;
+                    font.connect(a.analitzador);
+                    if (a.quan < audioCtx.currentTime) a.quan = audioCtx.currentTime + 0.05;
+                    font.start(a.quan);
+                    a.quan += buf.duration;
 
-                    a.pendents.push(URL.createObjectURL(new Blob([peça], { type: 'audio/mpeg' })));
-                    serveixApart(a);
+                    a.sons.push(font);
+                    if (a.sons.length > 40) a.sons = a.sons.slice(-20);
+                    a.fets++;
+                    a.senyal = Date.now();
                 }
-            } catch (e) {}
-            // Si aquesta instància no ha arribat a servir cap tros, compta com
-            // a errada: sense fre, drawViz ho tornava a provar cinquanta cops
-            // per segon i cada volta deixava més brossa enrere.
+            } catch (e) {
+                a.error = (e && e.message) || String(e);
+            }
             if (!a.fets) apartFallades++; else apartFallades = 0;
             aturaApart(a);
         }
 
-        /**
-         * Dona el tros següent al reproductor que estigui lliure. Safari no
-         * descodifica retalls d'un flux —ho hem vist: totes les provatures
-         * fallaven— però sí que reprodueix i deixa analitzar un fitxer, que és
-         * per això que als podcasts l'equalitzador sí que hi funciona. Doncs
-         * li donem fitxers.
-         */
-        function serveixApart(a) {
-            if (!a || a.aturat) return;
-
-            // Primer, precarregar. Abans li donava el tros just en el moment del
-            // relleu i el reproductor encara l'havia de llegir: aquell instant
-            // de càrrega era el parpelleig que es veia. Ara el té a punt molt
-            // abans, i al relleu només cal dir-li que soni.
-            a.reps.forEach(el => {
-                if (!el.__llest && (el.paused || el.ended) && a.pendents.length) {
-                    try {
-                        // La que aquest ja ha fet servir, ara sí que sobra.
-                        // Abans les anava revocant per ordre d'antiguitat i,
-                        // quan la cua va créixer, destruïa trossos que encara
-                        // esperaven torn: d'aquí que anés bé una estona i
-                        // després caigués.
-                        if (el.__url) { try { URL.revokeObjectURL(el.__url); } catch (e) {} }
-                        el.__url = a.pendents.shift();
-                        el.src = el.__url;
-                        el.load();
-                        el.__llest = true;
-                    } catch (e) {}
-                }
-            });
-
-            // Tot tros carregat s'engega de seguida, encara que l'altre encara
-            // soni: com que cada un porta mig segon repetit del anterior, això
-            // és precisament el solapament que tapa el relleu.
-            a.reps.forEach(el => { if (el.__llest) engegaApart(a, el); });
-        }
-
-        function engegaApart(a, el) {
-            el.__llest = false;
-            try {
-                el.play().then(() => { a.fets++; a.senyal = Date.now(); }).catch(() => {});
-            } catch (e) {}
-
-        }
-
-        /** Si no arriba senyal, val la pena tornar-ho a lligar tot abans de plegar. */        /** Si no arriba senyal, val la pena tornar-ho a lligar tot abans de plegar. */        /** Si no arriba senyal, val la pena tornar-ho a lligar tot abans de plegar. */
+        /** Si no arriba senyal, val la pena tornar-ho a lligar tot abans de plegar. */        /** Si no arriba senyal, val la pena tornar-ho a lligar tot abans de plegar. */        /** Si no arriba senyal, val la pena tornar-ho a lligar tot abans de plegar. */        /** Si no arriba senyal, val la pena tornar-ho a lligar tot abans de plegar. */
         function reparaAnalitzador() {
             despertaContext();
             if (audioCors) connectAnalyser();
