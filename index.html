@@ -3189,7 +3189,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-20t';
+        const VERSIO = '2026-08-20u';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3572,6 +3572,53 @@
         }
 
         let arrossegant = false;
+        // ============================================================
+        // ON ANAVA CADA EPISODI
+        //
+        // Deixar un podcast a la meitat i tornar-hi l'endemà volia dir començar
+        // de zero. Ho desem pel seu compte, sense afegir cap botó: només cal
+        // que hi torni i continuï.
+        // ============================================================
+        let onAnava = {};
+        try { onAnava = JSON.parse(localStorage.getItem('podMinut') || '{}') || {}; } catch (e) {}
+
+        const clauEpisodi = url => 'e:' + (url || '').slice(-60);
+
+        function desaOnAnava() {
+            try {
+                const claus = Object.keys(onAnava);
+                // No cal recordar mig any d'escoltes: ens quedem amb les últimes.
+                if (claus.length > 250) {
+                    claus.sort((a, b) => onAnava[a].q - onAnava[b].q)
+                         .slice(0, claus.length - 200)
+                         .forEach(k => delete onAnava[k]);
+                }
+                localStorage.setItem('podMinut', JSON.stringify(onAnava));
+            } catch (e) {}
+        }
+
+        function apuntaOnAnava() {
+            if (!currentStation || !currentStation.episodi) return;
+            const t = audio.currentTime, d = audio.duration;
+            if (!isFinite(d) || d <= 0) return;
+            const k = clauEpisodi(currentStation.url_resolved);
+            // Ni just començat ni a punt d'acabar: en aquests dos casos, tornar
+            // a sentir-lo des del principi és el que espera qualsevol.
+            if (t < 20 || d - t < 25) delete onAnava[k];
+            else onAnava[k] = { t: Math.round(t), q: Date.now() };
+            desaOnAnava();
+        }
+
+        /** En obrir un episodi, el deixem on el vam deixar. */
+        function reprenOnAnava() {
+            if (!currentStation || !currentStation.episodi) return;
+            const g = onAnava[clauEpisodi(currentStation.url_resolved)];
+            if (!g || !isFinite(audio.duration) || audio.duration <= 0) return;
+            if (g.t < 20 || g.t > audio.duration - 25) return;
+            if (audio.currentTime > 5) return;      // ja s'havia mogut sol
+            try { audio.currentTime = g.t; } catch (e) {}
+        }
+
         function syncSeek() {
             const row = byId('seek-row');
             if (!row) return;
@@ -4160,6 +4207,23 @@
         }
 
         function attachAudioListeners(el) {
+        // Quan sabem quant dura, ja el podem deixar on el vam deixar.
+        el.addEventListener('loadedmetadata', () => reprenOnAnava());
+        el.addEventListener('timeupdate', () => {
+            if (el !== audio) return;
+            const ara = Date.now();
+            if (ara - (el.__apunt || 0) < 4000) return;   // cada quatre segons n'hi ha prou
+            el.__apunt = ara;
+            apuntaOnAnava();
+        });
+        el.addEventListener('pause', () => apuntaOnAnava());
+        el.addEventListener('ended', () => {
+            // S'ha acabat: ja no hi ha res per recordar.
+            if (currentStation && currentStation.episodi) {
+                delete onAnava[clauEpisodi(currentStation.url_resolved)];
+                desaOnAnava();
+            }
+        });
         el.addEventListener('play', () => { isPlaying = true; setPlayIcons(true); });
         el.addEventListener('waiting', () => setStatus('loading'));
         el.addEventListener('playing', () => {
