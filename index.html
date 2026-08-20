@@ -2947,7 +2947,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-20f';
+        const VERSIO = '2026-08-20g';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3595,7 +3595,10 @@
             try { clearInterval(a.vigilant); } catch (e) {}
             try { a.lector.cancel(); } catch (e) {}
             try { (a.reps || []).forEach(el => { try { el.pause(); el.removeAttribute('src'); } catch (e) {} }); } catch (e) {}
-            try { (a.urls || []).forEach(u => { try { URL.revokeObjectURL(u); } catch (e) {} }); } catch (e) {}
+            try {
+                (a.pendents || []).forEach(u => { try { URL.revokeObjectURL(u); } catch (e) {} });
+                (a.reps || []).forEach(el => { if (el.__url) { try { URL.revokeObjectURL(el.__url); } catch (e) {} } });
+            } catch (e) {}
             try { a.mut.disconnect(); } catch (e) {}
         }
 
@@ -3614,7 +3617,7 @@
             const url = audio.currentSrc;
             if (!url || url.indexOf('blob:') === 0) return;
 
-            const a = { url, aturat: false, senyal: 0, pendents: [], urls: [], fets: 0 };
+            const a = { url, aturat: false, senyal: 0, pendents: [], fets: 0 };
             apart = a;
             try {
                 const res = await fetch(url);
@@ -3694,10 +3697,7 @@
                         continue;
                     }
 
-                    const u = URL.createObjectURL(new Blob([tall.llest], { type: 'audio/mpeg' }));
-                    a.pendents.push(u);
-                    a.urls.push(u);
-                    if (a.urls.length > 6) { try { URL.revokeObjectURL(a.urls.shift()); } catch (e) {} }
+                    a.pendents.push(URL.createObjectURL(new Blob([tall.llest], { type: 'audio/mpeg' })));
                     serveixApart(a);
                 }
             } catch (e) {}
@@ -3721,7 +3721,14 @@
             a.reps.forEach(el => {
                 if (!el.__llest && (el.paused || el.ended) && a.pendents.length) {
                     try {
-                        el.src = a.pendents.shift();
+                        // La que aquest ja ha fet servir, ara sí que sobra.
+                        // Abans les anava revocant per ordre d'antiguitat i,
+                        // quan la cua va créixer, destruïa trossos que encara
+                        // esperaven torn: d'aquí que anés bé una estona i
+                        // després caigués.
+                        if (el.__url) { try { URL.revokeObjectURL(el.__url); } catch (e) {} }
+                        el.__url = a.pendents.shift();
+                        el.src = el.__url;
                         el.load();
                         el.__llest = true;
                     } catch (e) {}
