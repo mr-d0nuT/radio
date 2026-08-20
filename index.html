@@ -117,6 +117,7 @@
             body.hi-ha-so #player-bar { height: 4.25rem; }
             body.hi-ha-so #player-volume,
             body.hi-ha-so #btn-copy-link { display: none !important; }
+            body.hi-ha-so #btn-pantalla:not(.hidden-app) { display: inline-flex !important; }
             body.hi-ha-so #player-info { width: auto; flex: 1 1 auto; }
             body.hi-ha-so #player-controls { flex: 0 0 auto; }
         }
@@ -740,6 +741,9 @@
                         <span class="glif"><svg class="g-play" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="3.6" stroke-linejoin="round" stroke-linecap="round"><path d="M9.7 6.6 17.8 12l-8.1 5.4z"/></svg><svg class="g-pausa" viewBox="0 0 24 24" fill="currentColor"><rect x="7.2" y="5" width="3.9" height="14" rx="1.95"/><rect x="12.9" y="5" width="3.9" height="14" rx="1.95"/></svg></span>
                     </button>
 
+                    <button id="btn-pantalla" onclick="tocaPantalla()" class="hidden-app text-white/40 hover:text-white transition-colors" title="Pantalla completa">
+                        <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 9V5a1 1 0 011-1h4M20 9V5a1 1 0 00-1-1h-4M4 15v4a1 1 0 001 1h4M20 15v4a1 1 0 01-1 1h-4"/></svg>
+                    </button>
                     <button class="text-white/40 hover:text-white transition-colors" id="btn-copy-link" title="Copiar enllaç"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg></button>
                 </div>
             </div>
@@ -1114,6 +1118,34 @@
             setLiveIndicators(false);
             setStatus('blocked');
             if (veientEmissores() && allStations.length) renderStations(allStations);
+        }
+
+        /**
+         * Pantalla completa. No es pot fer sol en girar el telèfon: el
+         * navegador només ho accepta si ho demana una acció de l'usuari, i un
+         * gir no ho és. Per això és un botó, i només surt on el navegador ho
+         * permet: a l'iPhone, Safari no ho ofereix a cap pàgina web, i l'única
+         * manera de treure's la barra de sobre és afegir l'app a la pantalla
+         * d'inici, que llavors s'obre sense res al voltant.
+         */
+        function potPantalla() {
+            const e = document.documentElement;
+            return !!(e.requestFullscreen || e.webkitRequestFullscreen);
+        }
+
+        function tocaPantalla() {
+            const e = document.documentElement;
+            const dins = document.fullscreenElement || document.webkitFullscreenElement;
+            try {
+                if (dins) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+                else (e.requestFullscreen || e.webkitRequestFullscreen).call(e);
+            } catch (err) {}
+        }
+
+        // El botó només existeix on serveix d'alguna cosa.
+        if (potPantalla()) {
+            const b = byId('btn-pantalla');
+            if (b) b.classList.remove('hidden-app');
         }
 
         /** Tanca la finestra de fora i porta aquesta al davant. */
@@ -3157,7 +3189,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-20s';
+        const VERSIO = '2026-08-20t';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
