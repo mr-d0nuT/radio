@@ -103,6 +103,24 @@
             overflow: hidden;
         }
 
+        /* Telèfon de costat: l'equalitzador a tota la pantalla i, just a sota,
+           el disc girant, el nom, el cor i el play. Res més. */
+        @media (orientation: landscape) and (max-height: 560px) {
+            body.hi-ha-so #header-bar,
+            body.hi-ha-so #search-row,
+            body.hi-ha-so #content-area,
+            body.hi-ha-so #seek-row { display: none !important; }
+
+            body.hi-ha-so #viz-main {
+                flex: 1 1 auto; height: auto !important; min-height: 0;
+            }
+            body.hi-ha-so #player-bar { height: 4.25rem; }
+            body.hi-ha-so #player-volume,
+            body.hi-ha-so #btn-copy-link { display: none !important; }
+            body.hi-ha-so #player-info { width: auto; flex: 1 1 auto; }
+            body.hi-ha-so #player-controls { flex: 0 0 auto; }
+        }
+
         .hidden-app { display: none !important; }
 
         body {
@@ -2211,12 +2229,16 @@
         function vizTargets() {
             if (vizRefreshIn-- <= 0) {
                 vizRefreshIn = 30;
-                [['viz-main', 72], ['viz-gadget', 28]].forEach(([id, maxH]) => {
+                [['viz-main', 72], ['viz-gadget', 28]].forEach(([id, perDefecte]) => {
                     const cv = byId(id);
                     if (!cv) { delete vizCache[id]; return; }
                     if (!vizCache[id] || vizCache[id].cv !== cv) {
-                        vizCache[id] = { cv, ctx: cv.getContext('2d'), maxH, id };
+                        vizCache[id] = { cv, ctx: cv.getContext('2d'), maxH: perDefecte, id };
                     }
+                    // En horitzontal la tira ocupa tota la pantalla: l'alçada
+                    // útil ha de sortir del canvas, no d'un número fix.
+                    const alt = cv.clientHeight;
+                    if (alt > 4) vizCache[id].maxH = Math.max(16, alt - 4);
                 });
             }
             return Object.values(vizCache);
@@ -3135,7 +3157,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-20r';
+        const VERSIO = '2026-08-20s';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -4076,6 +4098,9 @@
 
         // Indicadors "en directe"
         function setLiveIndicators(on) {
+            // El mode horitzontal només té sentit amb música: si no, deixaria
+            // la pantalla buida en girar el telèfon.
+            document.body.classList.toggle('hi-ha-so', !!on);
             const badge = byId('gadget-live-badge'), geq = byId('gadget-eq'), peq = byId('player-eq');
             if (badge) badge.classList.toggle('hidden', !on);
             if (geq)   geq.classList.toggle('hidden', !on);
