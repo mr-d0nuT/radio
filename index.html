@@ -2947,7 +2947,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-20h';
+        const VERSIO = '2026-08-20i';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3593,7 +3593,7 @@
             apart = null;
             a.aturat = true;
             try { clearInterval(a.vigilant); } catch (e) {}
-            try { clearTimeout(a.rellevar); } catch (e) {}
+
             try { a.lector.cancel(); } catch (e) {}
             try { (a.reps || []).forEach(el => { try { el.pause(); el.removeAttribute('src'); } catch (e) {} }); } catch (e) {}
             try {
@@ -3690,7 +3690,19 @@
                         continue;
                     }
 
-                    a.pendents.push(URL.createObjectURL(new Blob([tall.llest], { type: 'audio/mpeg' })));
+                    // Cada tros s'endú mig segon del que ja portava l'anterior.
+                    // Sense això no hi ha manera de solapar-los: en fabriquem un
+                    // per segon i cada un dura un segon just, o sigui que en el
+                    // moment del relleu no hi ha res que cobreixi el canvi. Amb
+                    // la meitat repetida, mentre un acaba el següent ja fa
+                    // estona que sona.
+                    const peça = a.cua_ant && a.cua_ant.length
+                        ? (() => { const j = new Uint8Array(a.cua_ant.length + tall.llest.length);
+                                   j.set(a.cua_ant, 0); j.set(tall.llest, a.cua_ant.length); return j; })()
+                        : tall.llest;
+                    a.cua_ant = tall.llest.slice(Math.max(0, tall.llest.length - 8000));
+
+                    a.pendents.push(URL.createObjectURL(new Blob([peça], { type: 'audio/mpeg' })));
                     serveixApart(a);
                 }
             } catch (e) {}
@@ -3728,15 +3740,10 @@
                 }
             });
 
-            // I si no sona cap, que arrenqui el que estigui llest. Al principi
-            // esperem a tenir-ne un parell: arrencar amb un de sol vol dir anar
-            // sense coixí, i al primer titubeig de la xarxa ens quedàvem secs i
-            // la tira queia sencera.
-            if (a.reps.every(el => el.paused || el.ended)) {
-                if (!a.arrencat && a.pendents.length + a.reps.filter(el => el.__llest).length < 2) return;
-                const llest = a.reps.find(el => el.__llest);
-                if (llest) { a.arrencat = true; engegaApart(a, llest); }
-            }
+            // Tot tros carregat s'engega de seguida, encara que l'altre encara
+            // soni: com que cada un porta mig segon repetit del anterior, això
+            // és precisament el solapament que tapa el relleu.
+            a.reps.forEach(el => { if (el.__llest) engegaApart(a, el); });
         }
 
         function engegaApart(a, el) {
@@ -3745,22 +3752,6 @@
                 el.play().then(() => { a.fets++; a.senyal = Date.now(); }).catch(() => {});
             } catch (e) {}
 
-            // El relleu no pot dependre de `duration`: un tros de MP3 solt no
-            // porta capçalera amb la durada, i Safari no ens la sap dir, així
-            // que l'avís anticipat no arribava mai i el canvi només passava en
-            // acabar-se del tot. Aquell instant era el que es veia caure.
-            //
-            // Com que sabem quants bytes li hem donat i a quina velocitat va
-            // l'emissora, sabem quant dura. Engeguem el següent a mig camí i
-            // que se solapin: com que això no se sent, solapar no fa cap mal i
-            // sempre hi ha alguna cosa sonant.
-            clearTimeout(a.rellevar);
-            a.rellevar = setTimeout(() => {
-                if (a.aturat) return;
-                const altre = a.reps.find(x => x !== el && x.__llest);
-                if (altre) engegaApart(a, altre);
-                else serveixApart(a);
-            }, 520);
         }
 
         /** Si no arriba senyal, val la pena tornar-ho a lligar tot abans de plegar. */        /** Si no arriba senyal, val la pena tornar-ho a lligar tot abans de plegar. */        /** Si no arriba senyal, val la pena tornar-ho a lligar tot abans de plegar. */
