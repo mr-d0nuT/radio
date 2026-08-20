@@ -2274,7 +2274,14 @@
                 }
 
                 if (suma > 0) { senyal = true; fontDades = apart.analitzador; apartUltim = ara; }
-                else if (apartUltim && ara - apartUltim < 4000 && viu > 2) {
+                // Encara que ara mateix no arribi res, la tira no s'ha de
+                // tancar: que les barres baixin sembla un moment fluix de la
+                // música, però la franja que desapareix i torna mou tota la
+                // pantalla i canta molt més. Abans això ho lligava a que
+                // quedés senyal a la vista, i amb la caiguda ràpida les barres
+                // baixaven del llindar en tres dècimes: la gràcia de quatre
+                // segons no servia de res.
+                else if (apartUltim && ara - apartUltim < 10000) {
                     senyal = true; fontDades = apart.analitzador;
                 }
             }
@@ -2947,7 +2954,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-20i';
+        const VERSIO = '2026-08-20j';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
