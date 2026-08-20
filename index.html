@@ -2154,6 +2154,36 @@
          * verd i el blau no sortien gairebé mai. Comparant cada una amb ella
          * mateixa, totes tenen el seu moment.
          */
+        /**
+         * Cada banda mesurada contra el seu propi recorregut: on és ara entre
+         * el més fluix i el més fort que ha fet últimament.
+         *
+         * Seguir només el màxim no serveix —el valor d'ara sol ser el seu propi
+         * màxim recent i sortiria sempre a dalt de tot, que és justament el que
+         * es veia—. Amb sostre i terra, la banda recorre tota l'alçada.
+         */
+        const vizRangs = {};
+        function rangBanda(id, i, n, v) {
+            let r = vizRangs[id];
+            if (!r || r.mit.length !== n) {
+                r = vizRangs[id] = { mit: new Float32Array(n), dev: new Float32Array(n) };
+                r.mit.fill(0.5); r.dev.fill(0.08);
+            }
+            // Mesurar entre el més fluix i el més fort tampoc no valia: a la
+            // ràdio, dins de cada banda el nivell es passa gairebé tota l'estona
+            // arrapat al seu màxim, i sortia sempre a dalt. El que cal és que el
+            // valor de sempre caigui a mitja alçada i que el recorregut el marqui
+            // la variació de debò de cada banda.
+            // Mediana, no mitjana: als greus, els bacs curts i profunds entre
+            // cop i cop estiraven la mitjana cap avall i la banda es passava el
+            // dia per sobre. Pujant i baixant un pas fix, la referència acaba
+            // deixant la meitat de l'estona amunt i l'altra meitat avall.
+            r.mit[i] += (v > r.mit[i] ? 0.0016 : -0.0016);
+            r.dev[i] += (Math.abs(v - r.mit[i]) - r.dev[i]) * 0.012;
+            const esc = Math.max(0.025, r.dev[i] * 2.2);
+            return Math.max(0, Math.min(1, 0.5 + (v - r.mit[i]) / (2 * esc)));
+        }
+
         function relativa(id, i, n, v) {
             let st = vizSostres[id];
             if (!st || st.length !== n) st = vizSostres[id] = new Float32Array(n);
@@ -2168,6 +2198,7 @@
             Object.keys(vizPeaks).forEach(k => delete vizPeaks[k]);
             Object.keys(vizAnelles).forEach(k => delete vizAnelles[k]);
             Object.keys(vizSostres).forEach(k => delete vizSostres[k]);
+            Object.keys(vizRangs).forEach(k => delete vizRangs[k]);
             vizWipe = true;
             toast((vizStyle + 1) + ' / ' + VIZ_STYLES.length);
         }
@@ -2373,11 +2404,19 @@
                     const to = Math.max(from + 1, Math.floor(Math.pow((i + 1) / n, 1.7) * usable));
                     let v = 0;
                     for (let k = from; k < to; k++) v = Math.max(v, freqData[k]);
-                    // La ràdio va molt comprimida: gairebé tot el senyal viu
-                    // entre el 40 i el 95 per cent i, tal qual, les barres es
-                    // quedaven sempre altes i amb prou feines es movien. Traiem
-                    // el sòl i tornem a estirar fins a dalt.
-                    return Math.max(0, Math.min(1, (v / 255 - 0.22) / 0.70));
+
+                    // Mesurar cada banda contra una escala fixa no funciona: la
+                    // ràdio va tan comprimida que gairebé tot cau a la meitat
+                    // de dalt i les barres amb prou feines es mouen. Cada banda
+                    // es mesura contra el seu propi màxim recent —els greus
+                    // sempre van més forts que els aguts, i així cadascuna té
+                    // el seu recorregut sencer.
+                    const abs = Math.max(0, Math.min(1, (v / 255 - 0.22) / 0.70));
+                    const rang = rangBanda(id, i, n, v / 255);
+
+                    // Una mica de l'absolut, per no perdre del tot la noció de
+                    // fort i fluix, i el gruix del moviment, del recorregut.
+                    return Math.max(0, Math.min(1, 0.15 * abs + 0.85 * rang));
                 };
                 const to = (i, n) => (270 + (i / Math.max(1, n - 1)) * 280) % 360;
 
@@ -3096,7 +3135,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-20n';
+        const VERSIO = '2026-08-20r';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
