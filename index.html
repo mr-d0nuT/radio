@@ -3192,7 +3192,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-20v';
+        const VERSIO = '2026-08-20x';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3849,7 +3849,9 @@
                   + 'tira       ' + (vizLive() ? 'viva' : 'plegada') + '\n'
                   + 'errades    ' + apartFallades + (apartUltimError ? '  ' + apartUltimError.slice(0, 46) : '') + '\n'
                   + 'anàlisi    ' + (apart ? ((apart.analitzador ? 'en marxa' : 'obrint')
+                                     + (apart.aac ? ' AAC' : ' MP3')
                                      + ' trossos:' + (apart.fets || 0)
+                                     + (apart.aacKo ? ' aacKO:' + apart.aacKo : '')
                                      + ' pista:' + ((apart.quan || 0) - audioCtx.currentTime).toFixed(1) + 's'
                                      + (apart.error ? ' ERROR:' + apart.error : '')) : 'no cal') + '\n'
                   + 'captura    ' + (typeof audio.captureStream === 'function' ? 'sí'
@@ -3951,16 +3953,28 @@
             apartUltimIntent = Date.now();
 
             try {
-                const mod = await carregaMpg();
-                if (a.aturat) { aturaApart(a); return; }
-                a.dec = new mod.MPEGDecoder();
-                await a.dec.ready;
-                if (a.aturat) { aturaApart(a); return; }
-
                 const res = await fetch(url, a.avort ? { signal: a.avort.signal } : undefined);
                 if (!res.ok) { try { res.body.cancel(); } catch (e) {} throw new Error('HTTP ' + res.status); }
                 if (!res.body || a.aturat) { try { res.body.cancel(); } catch (e) {} aturaApart(a); return; }
                 a.lector = res.body.getReader();
+
+                // No totes emeten en MP3. Les que van en AAC —la casa Flaix,
+                // Catalunya Informació, alguna Cadena SER— necessiten un altre
+                // camí: el nostre descodificador només entén MP3, i per això
+                // aquelles queien al dibuix mentre les altres anaven bé.
+                // L'AAC el sap descodificar el navegador mateix, que és el
+                // format dels seus propis vídeos.
+                const tipus = (res.headers.get('content-type') || '').toLowerCase();
+                a.aac = tipus.indexOf('aac') > -1 || tipus.indexOf('mp4') > -1;
+                a.tipus = tipus || '?';
+
+                if (!a.aac) {
+                    const mod = await carregaMpg();
+                    if (a.aturat) { aturaApart(a); return; }
+                    a.dec = new mod.MPEGDecoder();
+                    await a.dec.ready;
+                    if (a.aturat) { aturaApart(a); return; }
+                }
 
                 a.analitzador = audioCtx.createAnalyser();
                 a.analitzador.fftSize = 1024;
@@ -3969,20 +3983,43 @@
                 // res i el so bo continua sortint pel camí de sempre, intacte.
                 a.quan = audioCtx.currentTime + 0.15;
 
+                let cua = new Uint8Array(0);
                 while (!a.aturat) {
                     const { done, value } = await a.lector.read();
                     if (done || a.aturat) break;
 
-                    const r = await a.dec.decode(value);
-                    if (a.aturat) break;
-                    if (!r || !r.samplesDecoded) continue;
+                    let buf = null;
+                    if (a.aac) {
+                        // Ajuntem un segon i tallem per l'inici d'un fotograma
+                        // ADTS, que és on el navegador sap començar a llegir.
+                        const j = new Uint8Array(cua.length + value.length);
+                        j.set(cua, 0); j.set(value, cua.length);
+                        cua = j;
+                        // Trossos generosos: amb un segon just, el
+                        // descodificador del navegador en rebutjava set de cada
+                        // nou. Amb quatre segons té prou context per llegir-los.
+                        if (cua.length < 64000) continue;
+                        let tall = -1;
+                        for (let i = cua.length - 2; i > 64; i--) {
+                            if (cua[i] === 0xFF && (cua[i + 1] & 0xF0) === 0xF0) { tall = i; break; }
+                        }
+                        if (tall < 0) { if (cua.length > 200000) cua = cua.slice(-32000); continue; }
+                        const tros = cua.slice(0, tall);
+                        cua = cua.slice(tall);
+                        try { buf = await audioCtx.decodeAudioData(tros.buffer); }
+                        catch (e) { a.aacKo = (a.aacKo || 0) + 1; continue; }
+                    } else {
+                        const r = await a.dec.decode(value);
+                        if (a.aturat) break;
+                        if (!r || !r.samplesDecoded) continue;
+                        buf = audioCtx.createBuffer(r.channelData.length, r.samplesDecoded, r.sampleRate);
+                        for (let c = 0; c < r.channelData.length; c++) buf.copyToChannel(r.channelData[c], c);
+                    }
+                    if (a.aturat || !buf) break;
 
                     // Massa so encarrilat vol dir que el gràfic aniria endarrerit
                     // del que se sent: deixem passar el sobrant.
                     if (a.quan - audioCtx.currentTime > 3) { a.sobrer = (a.sobrer || 0) + 1; continue; }
-
-                    const buf = audioCtx.createBuffer(r.channelData.length, r.samplesDecoded, r.sampleRate);
-                    for (let c = 0; c < r.channelData.length; c++) buf.copyToChannel(r.channelData[c], c);
 
                     const font = audioCtx.createBufferSource();
                     font.buffer = buf;
