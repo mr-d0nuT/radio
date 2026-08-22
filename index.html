@@ -3192,7 +3192,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-20x';
+        const VERSIO = '2026-08-20z';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3852,7 +3852,8 @@
                                      + (apart.aac ? ' AAC' : ' MP3')
                                      + ' trossos:' + (apart.fets || 0)
                                      + (apart.aacKo ? ' aacKO:' + apart.aacKo : '')
-                                     + ' pista:' + ((apart.quan || 0) - audioCtx.currentTime).toFixed(1) + 's'
+                                     + ' desfase:' + ((apart.quan || 0) - audioCtx.currentTime).toFixed(1)
+                                     + '/' + endarreriment().toFixed(1) + 's'
                                      + (apart.error ? ' ERROR:' + apart.error : '')) : 'no cal') + '\n'
                   + 'captura    ' + (typeof audio.captureStream === 'function' ? 'sí'
                                    : (typeof audio.mozCaptureStream === 'function' ? 'moz' : 'NO')) + '\n'
@@ -3891,6 +3892,22 @@
         // ============================================================
         let apart = null;
         let apartFallades = 0, apartUltimIntent = 0, mpgCarregat = null, apartUltimError = '';
+
+        /**
+         * Quants segons de so porta desats el reproductor per davant d'on va.
+         * És el que el separa del directe, i el que hem d'esperar nosaltres per
+         * anar-hi a l'hora.
+         */
+        function endarreriment() {
+            try {
+                const b = audio.buffered;
+                if (b.length) {
+                    const d = b.end(b.length - 1) - audio.currentTime;
+                    if (isFinite(d) && d > 0) return Math.max(0.3, Math.min(8, d));
+                }
+            } catch (e) {}
+            return 1.5;
+        }
 
         /** Porta el descodificador, un sol cop i només on fa falta. */
         function carregaMpg() {
@@ -3981,7 +3998,11 @@
                 a.analitzador.smoothingTimeConstant = 0.2;
                 // L'analitzador no ha d'arribar a la sortida: així no se sent
                 // res i el so bo continua sortint pel camí de sempre, intacte.
-                a.quan = audioCtx.currentTime + 0.15;
+                // El reproductor va uns segons per darrere del directe: el que
+                // sents ara ja el té desat des de fa una estona. Si el gràfic
+                // corregués al dia, aniria per davant del so. Ens col·loquem
+                // al mateix punt que ell.
+                a.quan = audioCtx.currentTime + endarreriment();
 
                 let cua = new Uint8Array(0);
                 while (!a.aturat) {
@@ -4017,9 +4038,12 @@
                     }
                     if (a.aturat || !buf) break;
 
-                    // Massa so encarrilat vol dir que el gràfic aniria endarrerit
-                    // del que se sent: deixem passar el sobrant.
-                    if (a.quan - audioCtx.currentTime > 3) { a.sobrer = (a.sobrer || 0) + 1; continue; }
+                    // I si ens n'anem molt per damunt del que el reproductor
+                    // porta desat, deixem passar el sobrant.
+                    a.desfase = a.quan - audioCtx.currentTime;
+                    // Marge estret: amb un de folgat es quedava més d'un segon
+                    // per damunt del punt on va el so, i el ball es notava.
+                    if (a.desfase > endarreriment() + 0.35) { a.sobrer = (a.sobrer || 0) + 1; continue; }
 
                     const font = audioCtx.createBufferSource();
                     font.buffer = buf;
