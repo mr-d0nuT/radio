@@ -2281,32 +2281,67 @@
 
         let pintatFase = 0;
         let pintatLastT = 0;
+        let pintatEstat = null;
         function omplePintat(t) {
-            const n = freqData ? freqData.length : 512;
-            if (!freqData || freqData.length !== n) freqData = new Uint8Array(n);
-            const dt = pintatLastT ? Math.min(0.08, (t - pintatLastT) / 1000) : 0.02;
-            pintatLastT = t;
-            pintatFase += dt;
+            if (!freqData) freqData = new Uint8Array(512);
+            const n = freqData.length;
+            let e = pintatEstat;
+            if (!e || e.niv.length !== n) {
+                e = pintatEstat = { niv: new Float32Array(n), seguent: t, temps: 500,
+                                    compas: 0, melodia: 0.32, frase: t };
+            }
 
-            const beat1 = Math.pow(Math.max(0, Math.sin(pintatFase * 4.2)), 3);
-            const beat2 = Math.pow(Math.max(0, Math.sin(pintatFase * 8.4 + 1.2)), 4);
-            const flow = 0.55 + 0.35 * Math.sin(pintatFase * 1.3) + 0.10 * Math.cos(pintatFase * 0.7);
+            // Cada poques frases canvia el tempo i el registre. Sense això
+            // s'hi veia el bucle de seguida.
+            if (t >= e.frase) {
+                e.temps = 420 + Math.random() * 250;        // de 100 a 145 per minut
+                e.frase = t + 7000 + Math.random() * 11000;
+            }
 
+            // El cop. Ataca sec, com a la música de debò; el que dona vida no
+            // són les ones suaus sinó els cops i com cauen després.
+            if (t >= e.seguent) {
+                e.seguent = t + e.temps;
+                e.compas = (e.compas + 1) % 4;
+                const forca = e.compas === 0 ? 1 : 0.7 + Math.random() * 0.25;
+
+                const bombo = Math.floor(n * 0.11);          // greus
+                for (let i = 0; i < bombo; i++) {
+                    const v = forca * (1 - (i / bombo) * 0.6);
+                    if (v > e.niv[i]) e.niv[i] = v;
+                }
+                if (e.compas % 2 === 1) {                    // caixa, a contratemps
+                    const d = Math.floor(n * 0.13), h = Math.floor(n * 0.34);
+                    for (let i = d; i < h; i++) {
+                        const v = 0.5 + Math.random() * 0.35;
+                        if (v > e.niv[i]) e.niv[i] = v;
+                    }
+                }
+                if (Math.random() < 0.85) {                  // xarles
+                    const d = Math.floor(n * 0.42), h = Math.floor(n * 0.82);
+                    for (let i = d; i < h; i++) {
+                        const v = 0.22 + Math.random() * 0.4;
+                        if (v > e.niv[i]) e.niv[i] = v;
+                    }
+                }
+                // La melodia es passeja, no es queda clavada
+                e.melodia = Math.max(0.14, Math.min(0.7, e.melodia + (Math.random() - 0.5) * 0.22));
+            }
+
+            const cim = e.melodia * n, ample = n * 0.055;
             for (let i = 0; i < n; i++) {
                 const f = i / n;
-                const caiguda = Math.pow(1 - f * 0.88, 1.6);
-                const isBass = f < 0.15;
-                const bassBoost = isBass ? (beat1 * 0.65 + beat2 * 0.35 + 0.4) * (1 - f / 0.15) : 0;
-                const wave = (
-                    0.46 * Math.sin(t / 220 + i * 0.28) +
-                    0.26 * Math.sin(t / 740 + i * 0.11) +
-                    0.18 * Math.sin(t / 1450 - i * 0.19) +
-                    0.10 * Math.cos(t / 3100 + i * 0.05)
-                );
-                const rawVal = caiguda * (0.38 * flow + 0.34 * wave + bassBoost);
-                const targetVal = Math.max(0, Math.min(255, rawVal * 280));
-                const prev = freqData[i] || 0;
-                freqData[i] = Math.round(targetVal > prev ? prev + (targetVal - prev) * 0.65 : prev * 0.80);
+                // Una nota sostinguda que es manté entre cop i cop
+                const nota = Math.exp(-Math.pow((i - cim) / ample, 2)) * 0.45
+                           + Math.exp(-Math.pow((i - cim * 2) / (ample * 1.6), 2)) * 0.18;
+                if (nota > e.niv[i]) e.niv[i] = nota;
+
+                // Els aguts s'apaguen abans que els greus, com passa de debò
+                e.niv[i] *= 0.90 - f * 0.05;
+
+                const sostre = Math.pow(1 - f, 1.05);
+                const gra = (Math.random() - 0.5) * 0.07;
+                freqData[i] = Math.max(0, Math.min(255, (e.niv[i] * sostre + gra) * 255));
             }
         }
 
@@ -3173,7 +3208,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-22a';
+        const VERSIO = '2026-08-22b';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
