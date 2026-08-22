@@ -2369,6 +2369,7 @@
 
             // Engeguem l'anàlisi en segon pla si el camí directe no té senyal
             if (!senyal && sonaAra() && !apart && !jaHiHaviaSenyal
+                && !(currentStation && apartInutil === currentStation.stationuuid)
                 && vizMutDes && ara - vizMutDes > 300
                 && Date.now() - apartUltimIntent > (apartFallades >= 5 ? 12000 : 2000)) {
                 analitzaApart();
@@ -3172,7 +3173,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-20z';
+        const VERSIO = '2026-08-22a';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3858,6 +3859,12 @@
         // ============================================================
         let apart = null;
         let apartFallades = 0, apartUltimIntent = 0, mpgCarregat = null, apartUltimError = '';
+        // Emissores on el servidor no ens deixa mesurar. Hi ha CDN —els de
+        // streamtheworld, per exemple— que a una petició de JavaScript li donen
+        // trenta-dos kB comptats i pengen, mentre que al reproductor li serveixen
+        // el directe sencer. No ho podem imitar: les capçaleres que ens
+        // distingeixen són de les que el navegador no deixa tocar.
+        let apartCurtes = 0, apartInutil = '';
 
         /**
          * Quants segons de so porta desats el reproductor per davant d'on va.
@@ -3943,7 +3950,17 @@
             apartUltimIntent = Date.now();
 
             try {
-                const res = await fetch(url, a.avort ? { signal: a.avort.signal } : undefined);
+                // Amb temps màxim. Hi ha servidors —els de streamtheworld, per
+                // exemple— on aquesta petició es pot quedar penjada per sempre
+                // sense fallar mai: llavors no hi havia ni error ni reintent, i
+                // l'equalitzador d'aquella emissora no apareixia mai més.
+                const rellotge = setTimeout(() => { try { a.avort && a.avort.abort(); } catch (e) {} }, 8000);
+                let res;
+                try {
+                    res = await fetch(url, a.avort ? { signal: a.avort.signal } : undefined);
+                } finally {
+                    clearTimeout(rellotge);
+                }
                 if (!res.ok) { try { res.body.cancel(); } catch (e) {} throw new Error('HTTP ' + res.status); }
                 if (!res.body || a.aturat) { try { res.body.cancel(); } catch (e) {} aturaApart(a); return; }
                 a.lector = res.body.getReader();
@@ -4008,35 +4025,14 @@
                             const trosBuf = tros.buffer.slice(tros.byteOffset, tros.byteOffset + tros.byteLength);
                             buf = await audioCtx.decodeAudioData(trosBuf);
                         } catch (e) {
+                            // Aquest tros no s'ha pogut llegir i prou. Abans
+                            // s'omplia amb soroll fabricat a partir del pes dels
+                            // bytes, però allò no és el so: barrejat amb els
+                            // trossos de debò, no hi ha manera de distingir què
+                            // és real. Val més saltar-se'l: la baixada suau de
+                            // les barres ja tapa el buit.
                             a.aacKo = (a.aacKo || 0) + 1;
-                            // En WebKit on decodeAudioData rebutja fragments solts d'ADTS,
-                            // calculem l'envolupant d'energia real dels fotogrames AAC per alimentar l'espectre
-                            const srIdx = (tros[2] & 0x3C) >> 2;
-                            const sRates = [96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000];
-                            const sr = sRates[srIdx] || 44100;
-                            const samples = 1024;
-                            buf = audioCtx.createBuffer(2, samples, sr);
-                            let energy = 0;
-                            for (let k = 0; k < Math.min(512, tros.length); k++) energy += Math.abs(tros[k] - 128);
-                            const amp = Math.min(0.8, (energy / Math.min(512, tros.length)) / 64);
-                            let b0=0, b1=0, b2=0, b3=0, b4=0, b5=0, b6=0;
-                            for (let s = 0; s < samples; s++) {
-                                let white = Math.random() * 2 - 1;
-                                b0 = 0.99886 * b0 + white * 0.0555179;
-                                b1 = 0.99332 * b1 + white * 0.0750759;
-                                b2 = 0.96900 * b2 + white * 0.1538520;
-                                b3 = 0.86650 * b3 + white * 0.3104856;
-                                b4 = 0.55000 * b4 + white * 0.5329522;
-                                b5 = -0.7616 * b5 - white * 0.0168980;
-                                let pink = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
-                                b6 = white * 0.115926;
-                                let freq1 = 0.02 + Math.sin(a.fets * 0.1) * 0.01;
-                                let freq2 = 0.08 + Math.cos(a.fets * 0.15) * 0.02;
-                                let harmonics = Math.sin(s * freq1) * 0.4 + Math.sin(s * freq2) * 0.2;
-                                let val = (pink * 0.12 + harmonics) * amp * 3.5;
-                                buf.getChannelData(0)[s] = val;
-                                buf.getChannelData(1)[s] = val;
-                            }
+                            continue;
                         }
                     } else {
                         if (!a.dec) {
@@ -4082,6 +4078,13 @@
                 apartUltimError = a.error;
             }
             if (!a.fets) apartFallades++; else { apartFallades = 0; apartUltimError = ''; }
+
+            // El servidor ens ha tallat de seguida: si passa dues vegades
+            // seguides amb la mateixa emissora, no hi ha res a fer i deixem
+            // d'insistir, que si no la tira pampalluguejava cada sis segons.
+            if (a.fets > 0 && a.fets < 8) {
+                if (++apartCurtes >= 2 && currentStation) apartInutil = currentStation.stationuuid;
+            } else if (a.fets >= 8) apartCurtes = 0;
             aturaApart(a);
         }
 
@@ -4178,6 +4181,7 @@
             aturaApart();
             jaHiHaviaSenyal = false;
             apartUltim = 0; apartFallades = 0; apartUltimIntent = 0;
+            apartCurtes = 0; apartInutil = '';
             currentStation = station;
             vizMutDes = 0; vizIntents = 0;
             localStorage.setItem('radioLast', JSON.stringify(station));
