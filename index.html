@@ -2378,6 +2378,7 @@
             // El camí de sempre no dona res: engeguem l'anàlisi a part. La
             // reproducció no es toca; només baixem el mateix so per mesurar-lo.
             if (!senyal && sonaAra() && !apart && !jaHiHaviaSenyal
+                && !(currentStation && apartInutil === currentStation.stationuuid)
                 && vizMutDes && ara - vizMutDes > 400
                 // Cinc errades seguides fan esperar més, però no aturen res per
                 // sempre: una emissora pot fallar ara i anar bé d'aquí a un
@@ -3192,7 +3193,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-20z';
+        const VERSIO = '2026-08-21b';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3847,7 +3848,8 @@
                   + 'context    ' + (audioCtx ? audioCtx.state : '—') + '\n'
                   + 'senyal max ' + mx + '   reparacions ' + vizIntents + '\n'
                   + 'tira       ' + (vizLive() ? 'viva' : 'plegada') + '\n'
-                  + 'errades    ' + apartFallades + (apartUltimError ? '  ' + apartUltimError.slice(0, 46) : '') + '\n'
+                  + 'errades    ' + apartFallades
+                                     + (apartInutil ? '  el servidor no deixa mesurar' : '') + (apartUltimError ? '  ' + apartUltimError.slice(0, 46) : '') + '\n'
                   + 'anàlisi    ' + (apart ? ((apart.analitzador ? 'en marxa' : 'obrint')
                                      + (apart.aac ? ' AAC' : ' MP3')
                                      + ' trossos:' + (apart.fets || 0)
@@ -3892,6 +3894,13 @@
         // ============================================================
         let apart = null;
         let apartFallades = 0, apartUltimIntent = 0, mpgCarregat = null, apartUltimError = '';
+        // Emissores on el servidor no ens deixa mesurar. Hi ha CDN —els de
+        // streamtheworld, per exemple— que a una petició de JavaScript li donen
+        // trenta-dos kB comptats i pengen, mentre que al reproductor li serveixen
+        // el directe sencer. No ho podem imitar: les capçaleres que ens
+        // distingeixen són de les que el navegador no deixa tocar. Val més
+        // saber-ho i deixar-ho estar que insistir cada sis segons.
+        let apartCurtes = 0, apartInutil = '';
 
         /**
          * Quants segons de so porta desats el reproductor per davant d'on va.
@@ -3970,7 +3979,17 @@
             apartUltimIntent = Date.now();
 
             try {
-                const res = await fetch(url, a.avort ? { signal: a.avort.signal } : undefined);
+                // Amb temps màxim. Hi ha servidors —els de streamtheworld, per
+                // exemple— on aquesta petició es pot quedar penjada per sempre
+                // sense fallar mai: llavors no hi havia ni error ni reintent, i
+                // l'equalitzador d'aquella emissora no apareixia mai més.
+                const rellotge = setTimeout(() => { try { a.avort && a.avort.abort(); } catch (e) {} }, 8000);
+                let res;
+                try {
+                    res = await fetch(url, a.avort ? { signal: a.avort.signal } : undefined);
+                } finally {
+                    clearTimeout(rellotge);
+                }
                 if (!res.ok) { try { res.body.cancel(); } catch (e) {} throw new Error('HTTP ' + res.status); }
                 if (!res.body || a.aturat) { try { res.body.cancel(); } catch (e) {} aturaApart(a); return; }
                 a.lector = res.body.getReader();
@@ -4062,6 +4081,12 @@
                 apartUltimError = a.error;
             }
             if (!a.fets) apartFallades++; else { apartFallades = 0; apartUltimError = ''; }
+
+            // El servidor ens ha tallat de seguida: si passa dues vegades
+            // seguides amb la mateixa emissora, no hi ha res a fer.
+            if (a.fets > 0 && a.fets < 8) {
+                if (++apartCurtes >= 2 && currentStation) apartInutil = currentStation.stationuuid;
+            } else if (a.fets >= 8) apartCurtes = 0;
             aturaApart(a);
         }
 
@@ -4157,6 +4182,7 @@
             aturaApart();
             jaHiHaviaSenyal = false;
             apartUltim = 0; apartFallades = 0; apartUltimIntent = 0;
+            apartCurtes = 0; apartInutil = '';
             currentStation = station;
             vizMutDes = 0; vizIntents = 0;
             localStorage.setItem('radioLast', JSON.stringify(station));
