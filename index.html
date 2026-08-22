@@ -2379,7 +2379,10 @@
             // reproducció no es toca; només baixem el mateix so per mesurar-lo.
             if (!senyal && sonaAra() && !apart && !jaHiHaviaSenyal
                 && vizMutDes && ara - vizMutDes > 400
-                && apartFallades < 5 && Date.now() - apartUltimIntent > 3000) analitzaApart();
+                // Cinc errades seguides fan esperar més, però no aturen res per
+                // sempre: una emissora pot fallar ara i anar bé d'aquí a un
+                // minut, i rendir-se del tot deixava la tira dibuixada per sempre.
+                && Date.now() - apartUltimIntent > (apartFallades >= 5 ? 20000 : 3000)) analitzaApart();
 
             // Si l'anàlisi fa tres segons que no dona res tot i estar sonant, no
             // hi ha manera d'adobar-la des d'aquí: el que s'espatlla viu dins
@@ -3189,7 +3192,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-20u';
+        const VERSIO = '2026-08-20v';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3844,6 +3847,7 @@
                   + 'context    ' + (audioCtx ? audioCtx.state : '—') + '\n'
                   + 'senyal max ' + mx + '   reparacions ' + vizIntents + '\n'
                   + 'tira       ' + (vizLive() ? 'viva' : 'plegada') + '\n'
+                  + 'errades    ' + apartFallades + (apartUltimError ? '  ' + apartUltimError.slice(0, 46) : '') + '\n'
                   + 'anàlisi    ' + (apart ? ((apart.analitzador ? 'en marxa' : 'obrint')
                                      + ' trossos:' + (apart.fets || 0)
                                      + ' pista:' + ((apart.quan || 0) - audioCtx.currentTime).toFixed(1) + 's'
@@ -3884,7 +3888,7 @@
         // Costa una mica més de dades, i per això només s'engega on cal.
         // ============================================================
         let apart = null;
-        let apartFallades = 0, apartUltimIntent = 0, mpgCarregat = null;
+        let apartFallades = 0, apartUltimIntent = 0, mpgCarregat = null, apartUltimError = '';
 
         /** Porta el descodificador, un sol cop i només on fa falta. */
         function carregaMpg() {
@@ -3994,8 +3998,9 @@
                 }
             } catch (e) {
                 a.error = (e && e.message) || String(e);
+                apartUltimError = a.error;
             }
-            if (!a.fets) apartFallades++; else apartFallades = 0;
+            if (!a.fets) apartFallades++; else { apartFallades = 0; apartUltimError = ''; }
             aturaApart(a);
         }
 
