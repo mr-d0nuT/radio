@@ -478,16 +478,6 @@
             #flags-row { width: auto; flex: 0 1 auto; row-gap: 5px; }
             #flags-row > button { flex: 0 0 auto; }
 
-            /* Les preferides passen de barra lateral a panell desplegable / tira */
-            #fav-sidebar {
-                width: 100%; flex-shrink: 0;
-                border-right: none;
-                border-bottom: 1px solid rgba(255,255,255,.05);
-                padding: 8px 12px;
-            }
-            #fav-sidebar.is-empty { display: none; }
-            #fav-panel { max-height: 220px; }
-
             /* Barra del reproductor: sense volum (a iOS el volum és de maquinari) */
             #player-volume { display: none !important; }
             #player-info { width: auto; flex: 1; min-width: 0; }
@@ -512,8 +502,6 @@
             #search-row { padding: 8px 12px; gap: 8px; }
             #search-row input, #search-row select { padding-top: 7px; padding-bottom: 7px; font-size: 13px; }
             #search-row select { width: 7.25rem; }
-
-            #fav-sidebar { padding: 6px 10px; }
 
             #stations-grid { padding: 8px 10px; }
             #stations-list { gap: 7px; }
@@ -656,16 +644,21 @@
             <button onclick="addCustomStation()" class="px-4 py-2 bg-[#ffd600] text-black text-sm font-bold rounded-lg hover:bg-yellow-400 transition-colors shrink-0" id="lbl-add-btn">Afegir</button>
         </div>
 
+        <!-- FAVORITES ROW (Dropdown) -->
+        <div id="fav-bar" class="hidden px-6 py-2 border-b border-white/5 bg-black/20 shrink-0 relative flex items-center z-[100]">
+             <div class="relative">
+                 <button id="fav-toggle" onclick="toggleFavPanel()" class="flex items-center gap-2 text-[11px] font-bold text-[#ffd600] hover:text-yellow-400 px-3 py-1.5 rounded-md bg-[#ffd600]/10 hover:bg-[#ffd600]/20 border border-[#ffd600]/20 transition-colors cursor-pointer tracking-wider">
+                     <span id="lbl-favorites">PREFERIDES (0/10)</span>
+                     <svg id="fav-caret" class="w-3.5 h-3.5 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                 </button>
+                 <div id="fav-panel" class="hidden-app absolute left-0 top-full mt-2 w-72 max-h-[50vh] overflow-y-auto overscroll-contain flex flex-col p-1.5 rounded-xl bg-[#12121a] border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.9)] z-[150]">
+                     <div id="favorites-list" class="flex flex-col gap-1 relative z-[160]"></div>
+                 </div>
+             </div>
+        </div>
+
         <!-- CONTENT AREA -->
         <div id="content-area" class="flex-1 flex overflow-hidden">
-            <!-- Sidebar Favorites -->
-            <div id="fav-sidebar" class="w-64 border-r border-white/5 bg-black/20 flex flex-col p-4 shrink-0 overflow-hidden">
-                <div class="flex items-center justify-between gap-2 mb-3">
-                    <span id="lbl-favorites" class="text-[10px] font-bold text-white/50 tracking-wider">PREFERIDES (0/10)</span>
-                </div>
-                <div id="favorites-list" class="flex-1 overflow-y-auto flex flex-col gap-1.5 pr-0.5"></div>
-            </div>
-
             <!-- Main Grid -->
             <div class="flex-1 overflow-y-auto p-4 relative" id="stations-grid">
                 <div id="loading-spinner" class="absolute inset-0 flex flex-col items-center justify-center gap-4 z-10">
@@ -1337,6 +1330,8 @@
         let currentLang = 'ca';
         // L'element d'àudio es recrea segons faci falta CORS o no (vegeu useAudioMode).
         let audio = new Audio();
+        audio.style.display = 'none';
+        document.body.appendChild(audio);
         let audioCors = false;
         let hls = null;
         let isPlaying = false;
@@ -1361,7 +1356,17 @@
             if (!e.target.closest('#about-card')) toggleAbout(false);
         });
 
-        function toggleFavPanel(tancar) {}
+        function toggleFavPanel(tancar) {
+            const p = byId('fav-panel'), c = byId('fav-caret');
+            if (!p) return;
+            const obert = !p.classList.contains('hidden-app');
+            const nou = tancar === true ? false : (tancar === false ? true : !obert);
+            p.classList.toggle('hidden-app', !nou);
+            if (c) c.style.transform = nou ? 'rotate(180deg)' : '';
+        }
+        document.addEventListener('click', e => {
+            if (!e.target.closest('#fav-bar')) toggleFavPanel(true);
+        });
 
         // Finestra flotant (Document PiP o popup). Mentre existeix, el gadget hi viu dins.
         let floatWin = null;
@@ -1956,8 +1961,17 @@
             const lbl = byId('lbl-favorites');
             const paraula = (mode === 'podcasts' && t().favM) ? t().favM : t().fav;
             if (lbl) lbl.textContent = paraula + ' (' + llista.length + '/' + MAX_FAVS + ')';
-            const sidebar = byId('fav-sidebar');
-            if (sidebar) sidebar.classList.toggle('is-empty', llista.length === 0);
+            
+            const bar = byId('fav-bar');
+            if (bar) {
+                if (llista.length === 0) {
+                    bar.classList.add('hidden');
+                    toggleFavPanel(true);
+                } else {
+                    bar.classList.remove('hidden');
+                }
+            }
+            
             renderGadgetFavs();
             const list = byId('favorites-list');
             if (!list) return;
@@ -1977,7 +1991,7 @@
                     ? `<span class="text-white/45 font-medium">${x.artist}</span> · ${x.name}`
                     : x.name;
                 fila.innerHTML = `
-                    <span class="text-[10px] font-bold text-white/30 w-3 shrink-0">${i + 1}</span>
+                    <span class="text-[10px] font-bold text-white/30 w-3 shrink-0 text-center">${i + 1}</span>
                     <div class="flex-1 overflow-hidden">
                         <div class="text-xs font-semibold text-white truncate group-hover:text-[#ffd600] transition-colors">${etiqueta}</div>
                     </div>
@@ -1989,9 +2003,12 @@
                     toggleFavorite(x);
                 });
                 fila.addEventListener('click', e => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     if (e.target.closest('.fav-del-btn')) return;
+                    setTimeout(() => toggleFavPanel(true), 50);
                     if (mode !== 'podcasts') { playStation(x); return; }
-                    if (x.episodi) playStation({ stationuuid: 'ep-' + x.url.slice(-40), name: x.name,
+                    if (x.episodi) playStation({ stationuuid: 'ep-' + (x.url || '').slice(-40), name: x.name,
                                                  url_resolved: x.url, country: x.artist,
                                                  favicon: x.art || '', episodi: true }, true);
                     else openEpisodes(x);
@@ -3688,6 +3705,8 @@
             try { const vella = fonts.get(audio); if (vella) vella.disconnect(); } catch (e) {}
 
             audio = new Audio();
+            audio.style.display = 'none';
+            document.body.appendChild(audio);
             if (wantCors) audio.crossOrigin = 'anonymous';
             audio.volume = wasVol;
             audio.muted = wasMuted;
@@ -3695,6 +3714,10 @@
             attachAudioListeners(audio);
             ['timeupdate', 'loadedmetadata', 'durationchange', 'emptied'].forEach(ev =>
                 audio.addEventListener(ev, syncSeek));
+                
+            if (wantCors && typeof connectAnalyser === 'function' && audioCtx) {
+                connectAnalyser();
+            }
         }
 
         const fonts = new WeakMap();
@@ -3727,6 +3750,17 @@
         }
 
         function despertaContext() {
+            if (!audioCtx) {
+                try {
+                    const Ctx = window.AudioContext || window.webkitAudioContext;
+                    if (Ctx) {
+                        audioCtx = new Ctx();
+                        audioCtx.onstatechange = () => {
+                            if (audioCtx.state === 'suspended' && sonaAra()) despertaContext();
+                        };
+                    }
+                } catch(e) {}
+            }
             if (audioCtx && (audioCtx.state === 'suspended' || audioCtx.state === 'interrupted')) {
                 audioCtx.resume().catch(() => {});
             }
@@ -3979,11 +4013,23 @@
                             let energy = 0;
                             for (let k = 0; k < Math.min(512, tros.length); k++) energy += Math.abs(tros[k] - 128);
                             const amp = Math.min(0.8, (energy / Math.min(512, tros.length)) / 64);
-                            for (let c = 0; c < 2; c++) {
-                                const ch = buf.getChannelData(c);
-                                for (let s = 0; s < samples; s++) {
-                                    ch[s] = Math.sin(s * 0.12 + c) * amp * (0.6 + 0.4 * Math.sin(s * 0.024));
-                                }
+                            let b0=0, b1=0, b2=0, b3=0, b4=0, b5=0, b6=0;
+                            for (let s = 0; s < samples; s++) {
+                                let white = Math.random() * 2 - 1;
+                                b0 = 0.99886 * b0 + white * 0.0555179;
+                                b1 = 0.99332 * b1 + white * 0.0750759;
+                                b2 = 0.96900 * b2 + white * 0.1538520;
+                                b3 = 0.86650 * b3 + white * 0.3104856;
+                                b4 = 0.55000 * b4 + white * 0.5329522;
+                                b5 = -0.7616 * b5 - white * 0.0168980;
+                                let pink = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
+                                b6 = white * 0.115926;
+                                let freq1 = 0.02 + Math.sin(a.fets * 0.1) * 0.01;
+                                let freq2 = 0.08 + Math.cos(a.fets * 0.15) * 0.02;
+                                let harmonics = Math.sin(s * freq1) * 0.4 + Math.sin(s * freq2) * 0.2;
+                                let val = (pink * 0.12 + harmonics) * amp * 3.5;
+                                buf.getChannelData(0)[s] = val;
+                                buf.getChannelData(1)[s] = val;
                             }
                         }
                     } else {
