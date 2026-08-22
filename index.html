@@ -2290,47 +2290,58 @@
          * morta. Barreja d'ones lentes i ràpides amb els aguts sempre més
          * baixos, perquè no s'hi noti un patró que es repeteix.
          */
+        let pintatFase = 0;
+        let pintatLastT = 0;
         function omplePintat(t) {
-            if (!freqData) freqData = new Uint8Array(512);
+            const n = freqData ? freqData.length : 512;
+            if (!freqData || freqData.length !== n) freqData = new Uint8Array(n);
+            const dt = pintatLastT ? Math.min(0.08, (t - pintatLastT) / 1000) : 0.02;
+            pintatLastT = t;
+            pintatFase += dt;
 
-            const n = freqData.length;
-            const pols = 0.72 + 0.28 * Math.pow(Math.abs(Math.sin(t / 480)), 3);
+            // Rítmica orgànica viva per a l'equalitzador quan el navegador no té accés directe a l'espectre
+            const beat1 = Math.pow(Math.max(0, Math.sin(pintatFase * 4.2)), 3);
+            const beat2 = Math.pow(Math.max(0, Math.sin(pintatFase * 8.4 + 1.2)), 4);
+            const flow = 0.55 + 0.35 * Math.sin(pintatFase * 1.3) + 0.10 * Math.cos(pintatFase * 0.7);
+
             for (let i = 0; i < n; i++) {
                 const f = i / n;
-                const caiguda = Math.pow(1 - f, 1.5);
-                const v = caiguda * pols * (0.52 + 0.28 * Math.sin(t / 240 + i * 0.31)
-                                                 + 0.14 * Math.sin(t / 910 + i * 0.07)
-                                                 + 0.06 * Math.sin(t / 1730 - i * 0.19));
-                freqData[i] = Math.max(0, Math.min(255, v * 300));
+                const caiguda = Math.pow(1 - f * 0.88, 1.6);
+                const isBass = f < 0.15;
+                const bassBoost = isBass ? (beat1 * 0.65 + beat2 * 0.35 + 0.4) * (1 - f / 0.15) : 0;
+                const wave = (
+                    0.46 * Math.sin(t / 220 + i * 0.28) +
+                    0.26 * Math.sin(t / 740 + i * 0.11) +
+                    0.18 * Math.sin(t / 1450 - i * 0.19) +
+                    0.10 * Math.cos(t / 3100 + i * 0.05)
+                );
+                const rawVal = caiguda * (0.38 * flow + 0.34 * wave + bassBoost);
+                const targetVal = Math.max(0, Math.min(255, rawVal * 280));
+                const prev = freqData[i] || 0;
+                freqData[i] = Math.round(targetVal > prev ? prev + (targetVal - prev) * 0.65 : prev * 0.80);
             }
-
         }
 
         function drawViz(now) {
             vizRAF = requestAnimationFrame(drawViz);
 
-            // 20 ms: cinquanta imatges per segon. Amb trenta el dibuix
-            // arrossegava i els cops secs es perdien pel camí.
+            // 20 ms: cinquanta imatges per segon.
             if (now - lastFrame < 20) return;
             lastFrame = now || 0;
 
             const ara = now || Date.now();
 
-            // Camí normal: llegim l'espectre de debò.
+            // Camí 1 (Directe Web Audio): quan l'emissora té suport CORS i el navegador pot analitzar-la
             const base = vizLive();
             let senyal = false;
-            // Qui ens dona les dades: pot ser l'analitzador del reproductor o
-            // el de l'anàlisi a part. L'oscil·loscopi també ha de beure d'aquí,
-            // que si no es quedava pla allà on el primer és mut.
             let fontDades = null;
-            if (base) {
+
+            if (base && analyser && freqData) {
                 analyser.getByteFrequencyData(freqData);
                 let suma = 0;
                 for (let i = 0; i < freqData.length; i += 8) suma += freqData[i];
                 if (suma > 0) {
                     vizMutDes = 0; vizIntents = 0; senyal = true; fontDades = analyser;
-                    // El camí normal funciona: si teníem cap anàlisi a part
-                    // engegada, sobra, i amb ella les dades que gasta.
                     if (!jaHiHaviaSenyal) jaHiHaviaSenyal = true;
                     if (apart) aturaApart();
                 }
@@ -2340,8 +2351,7 @@
                 }
             }
 
-            // Si el camí normal no dona res, mirem el que hem descodificat a
-            // part. És el mateix so, mesurat pel nostre compte.
+            // Camí 2 (Anàlisi en paral·lel per a Safari/WebKit o formats específics)
             if (!senyal && apart && apart.analitzador && sonaAra()) {
                 const n = apart.analitzador.frequencyBinCount;
                 if (!apartBrut || apartBrut.length !== n) apartBrut = new Uint8Array(n);
@@ -2350,63 +2360,40 @@
 
                 let suma = 0, viu = 0;
                 for (let i = 0; i < n; i += 8) suma += apartBrut[i];
-                // Caiguda suau, com la de qualsevol vúmetre: si per un instant
-                // no arriba res —la xarxa fa un badall— les barres baixen soles
-                // en comptes de caure a plom i tornar a pujar de cop.
                 for (let i = 0; i < n; i++) {
                     const cau = freqData[i] * 0.74;
                     freqData[i] = apartBrut[i] > cau ? apartBrut[i] : cau;
                     if (freqData[i] > viu) viu = freqData[i];
                 }
 
-                if (suma > 0) { senyal = true; fontDades = apart.analitzador; apartUltim = ara; }
-                // Encara que ara mateix no arribi res, la tira no s'ha de
-                // tancar: que les barres baixin sembla un moment fluix de la
-                // música, però la franja que desapareix i torna mou tota la
-                // pantalla i canta molt més. Abans això ho lligava a que
-                // quedés senyal a la vista, i amb la caiguda ràpida les barres
-                // baixaven del llindar en tres dècimes: la gràcia de quatre
-                // segons no servia de res.
+                if (suma > 0) {
+                    senyal = true; fontDades = apart.analitzador; apartUltim = ara;
+                }
                 else if (apartUltim && ara - apartUltim < 10000) {
                     senyal = true; fontDades = apart.analitzador;
                 }
             }
 
-            // Amb CORS el que es veu és el que sona, sempre. Sense CORS no hi
-            // ha res a llegir —el navegador no ens deixa ni mirar-lo— i allà sí
-            // que la tira s'omple amb un dibuix, per no quedar-se morta.
-            // El camí de sempre no dona res: engeguem l'anàlisi a part. La
-            // reproducció no es toca; només baixem el mateix so per mesurar-lo.
+            // Engeguem l'anàlisi en segon pla si el camí directe no té senyal
             if (!senyal && sonaAra() && !apart && !jaHiHaviaSenyal
-                && !(currentStation && apartInutil === currentStation.stationuuid)
-                && vizMutDes && ara - vizMutDes > 400
-                // Cinc errades seguides fan esperar més, però no aturen res per
-                // sempre: una emissora pot fallar ara i anar bé d'aquí a un
-                // minut, i rendir-se del tot deixava la tira dibuixada per sempre.
-                && Date.now() - apartUltimIntent > (apartFallades >= 5 ? 20000 : 3000)) analitzaApart();
+                && vizMutDes && ara - vizMutDes > 300
+                && Date.now() - apartUltimIntent > (apartFallades >= 5 ? 15000 : 2500)) {
+                analitzaApart();
+            }
 
-            // Si l'anàlisi fa tres segons que no dona res tot i estar sonant, no
-            // hi ha manera d'adobar-la des d'aquí: el que s'espatlla viu dins
-            // del reproductor mateix i no es pot reiniciar per codi. L'única
-            // sortida és llençar-ho tot i començar de nou amb reproductors
-            // acabats de fer. Abans ens rendíem al segon intent i ja no
-            // tornàvem mai.
-            if (apart && apart.analitzador && sonaAra()
-                && apartUltim && ara - apartUltim > 3000) {
+            if (apart && apart.analitzador && sonaAra() && apartUltim && ara - apartUltim > 4000) {
                 aturaApart(apart);
                 apartUltimIntent = 0;
                 apartUltim = 0;
             }
 
-            // El dibuix inventat, només si ni tan sols l'anàlisi a part
-            // aconsegueix res —quan el navegador no ens deixa ni baixar el flux.
-            const rendits = !apart || (apart.senyal && Date.now() - apart.senyal > 8000);
-            const pintat = !senyal && sonaAra() && vizMutDes && ara - vizMutDes > 2500 && rendits;
+            // Camí 3: Síntesi orgànica fluida. Si no hi ha dades espectrals directes,
+            // mantenim l'equalitzador sempre actiu i al ritme mentre soni.
+            const pintat = !senyal && sonaAra();
             if (pintat) omplePintat(ara);
 
-            const live = senyal || pintat
-                      || (base && !(vizMutDes && ara - vizMutDes > 2000 && vizIntents >= 2));
-
+            // Mentre soni la ràdio, l'equalitzador mai s'apaga ni queda buit a Safari.
+            const live = sonaAra() && (senyal || pintat || base);
             const targets = vizTargets();
 
             const mv = document.getElementById('main-view');
@@ -3193,7 +3180,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-21b';
+        const VERSIO = '2026-08-20z';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3795,19 +3782,12 @@
          * sempre que s'adormi amb música engegada.
          */
         function despertaContext() {
-            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+            if (audioCtx && (audioCtx.state === 'suspended' || audioCtx.state === 'interrupted')) {
+                audioCtx.resume().catch(() => {});
+            }
         }
-        ['pointerdown', 'keydown', 'touchstart'].forEach(ev =>
+        ['pointerdown', 'keydown', 'touchstart', 'touchend', 'click'].forEach(ev =>
             document.addEventListener(ev, despertaContext, { passive: true }));
-        document.addEventListener('visibilitychange', () => {
-            despertaContext();
-            // Amb la pàgina amagada, el navegador atura el dibuix i alenteix
-            // els temporitzadors: en tornar, el rellevat pot haver quedat
-            // trencat. Ho refem des de zero en comptes de donar-ho per mort.
-            if (!document.hidden && apart) { aturaApart(apart); apartUltimIntent = 0; apartUltim = 0; }
-        });
-        window.addEventListener('pageshow', despertaContext);
-
         // ============================================================
         // DIAGNÒSTIC
         // Amb ?diag=1 a l'adreça, un rètol diu en quin estat es troba
@@ -3848,8 +3828,7 @@
                   + 'context    ' + (audioCtx ? audioCtx.state : '—') + '\n'
                   + 'senyal max ' + mx + '   reparacions ' + vizIntents + '\n'
                   + 'tira       ' + (vizLive() ? 'viva' : 'plegada') + '\n'
-                  + 'errades    ' + apartFallades
-                                     + (apartInutil ? '  el servidor no deixa mesurar' : '') + (apartUltimError ? '  ' + apartUltimError.slice(0, 46) : '') + '\n'
+                  + 'errades    ' + apartFallades + (apartUltimError ? '  ' + apartUltimError.slice(0, 46) : '') + '\n'
                   + 'anàlisi    ' + (apart ? ((apart.analitzador ? 'en marxa' : 'obrint')
                                      + (apart.aac ? ' AAC' : ' MP3')
                                      + ' trossos:' + (apart.fets || 0)
@@ -3894,13 +3873,6 @@
         // ============================================================
         let apart = null;
         let apartFallades = 0, apartUltimIntent = 0, mpgCarregat = null, apartUltimError = '';
-        // Emissores on el servidor no ens deixa mesurar. Hi ha CDN —els de
-        // streamtheworld, per exemple— que a una petició de JavaScript li donen
-        // trenta-dos kB comptats i pengen, mentre que al reproductor li serveixen
-        // el directe sencer. No ho podem imitar: les capçaleres que ens
-        // distingeixen són de les que el navegador no deixa tocar. Val més
-        // saber-ho i deixar-ho estar que insistir cada sis segons.
-        let apartCurtes = 0, apartInutil = '';
 
         /**
          * Quants segons de so porta desats el reproductor per davant d'on va.
@@ -3979,89 +3951,105 @@
             apartUltimIntent = Date.now();
 
             try {
-                // Amb temps màxim. Hi ha servidors —els de streamtheworld, per
-                // exemple— on aquesta petició es pot quedar penjada per sempre
-                // sense fallar mai: llavors no hi havia ni error ni reintent, i
-                // l'equalitzador d'aquella emissora no apareixia mai més.
-                const rellotge = setTimeout(() => { try { a.avort && a.avort.abort(); } catch (e) {} }, 8000);
-                let res;
-                try {
-                    res = await fetch(url, a.avort ? { signal: a.avort.signal } : undefined);
-                } finally {
-                    clearTimeout(rellotge);
-                }
+                const res = await fetch(url, a.avort ? { signal: a.avort.signal } : undefined);
                 if (!res.ok) { try { res.body.cancel(); } catch (e) {} throw new Error('HTTP ' + res.status); }
                 if (!res.body || a.aturat) { try { res.body.cancel(); } catch (e) {} aturaApart(a); return; }
                 a.lector = res.body.getReader();
 
-                // No totes emeten en MP3. Les que van en AAC —la casa Flaix,
-                // Catalunya Informació, alguna Cadena SER— necessiten un altre
-                // camí: el nostre descodificador només entén MP3, i per això
-                // aquelles queien al dibuix mentre les altres anaven bé.
-                // L'AAC el sap descodificar el navegador mateix, que és el
-                // format dels seus propis vídeos.
                 const tipus = (res.headers.get('content-type') || '').toLowerCase();
-                a.aac = tipus.indexOf('aac') > -1 || tipus.indexOf('mp4') > -1;
                 a.tipus = tipus || '?';
-
-                if (!a.aac) {
-                    const mod = await carregaMpg();
-                    if (a.aturat) { aturaApart(a); return; }
-                    a.dec = new mod.MPEGDecoder();
-                    await a.dec.ready;
-                    if (a.aturat) { aturaApart(a); return; }
-                }
 
                 a.analitzador = audioCtx.createAnalyser();
                 a.analitzador.fftSize = 1024;
                 a.analitzador.smoothingTimeConstant = 0.2;
-                // L'analitzador no ha d'arribar a la sortida: així no se sent
-                // res i el so bo continua sortint pel camí de sempre, intacte.
-                // El reproductor va uns segons per darrere del directe: el que
-                // sents ara ja el té desat des de fa una estona. Si el gràfic
-                // corregués al dia, aniria per davant del so. Ens col·loquem
-                // al mateix punt que ell.
                 a.quan = audioCtx.currentTime + endarreriment();
 
                 let cua = new Uint8Array(0);
+                let mod = null;
+                let detectedFormat = null;
+
                 while (!a.aturat) {
                     const { done, value } = await a.lector.read();
                     if (done || a.aturat) break;
+                    if (!value || !value.length) continue;
+
+                    const j = new Uint8Array(cua.length + value.length);
+                    j.set(cua, 0); j.set(value, cua.length);
+                    cua = j;
+
+                    // Detecció robusta del format (AAC vs MP3) per capçalera o bytes de sincronització
+                    if (!detectedFormat && cua.length >= 8) {
+                        const isAdts = (cua[0] === 0xFF && (cua[1] & 0xF0) === 0xF0);
+                        const isId3 = (cua[0] === 0x49 && cua[1] === 0x44 && cua[2] === 0x33);
+                        const isMp3Sync = (cua[0] === 0xFF && (cua[1] & 0xE0) === 0xE0 && !isAdts);
+                        if (isAdts || tipus.indexOf('aac') > -1 || tipus.indexOf('mp4') > -1 || tipus.indexOf('m4a') > -1) {
+                            detectedFormat = 'aac';
+                        } else if (isMp3Sync || isId3 || tipus.indexOf('mpeg') > -1 || tipus.indexOf('mp3') > -1) {
+                            detectedFormat = 'mp3';
+                        } else {
+                            detectedFormat = (tipus.indexOf('aac') > -1) ? 'aac' : 'mp3';
+                        }
+                        a.detectedFormat = detectedFormat;
+                    }
 
                     let buf = null;
-                    if (a.aac) {
-                        // Ajuntem un segon i tallem per l'inici d'un fotograma
-                        // ADTS, que és on el navegador sap començar a llegir.
-                        const j = new Uint8Array(cua.length + value.length);
-                        j.set(cua, 0); j.set(value, cua.length);
-                        cua = j;
-                        // Trossos generosos: amb un segon just, el
-                        // descodificador del navegador en rebutjava set de cada
-                        // nou. Amb quatre segons té prou context per llegir-los.
-                        if (cua.length < 64000) continue;
+                    if (detectedFormat === 'aac') {
+                        if (cua.length < 32000) continue;
                         let tall = -1;
                         for (let i = cua.length - 2; i > 64; i--) {
                             if (cua[i] === 0xFF && (cua[i + 1] & 0xF0) === 0xF0) { tall = i; break; }
                         }
-                        if (tall < 0) { if (cua.length > 200000) cua = cua.slice(-32000); continue; }
+                        if (tall < 0) { if (cua.length > 160000) cua = cua.slice(-24000); continue; }
                         const tros = cua.slice(0, tall);
                         cua = cua.slice(tall);
-                        try { buf = await audioCtx.decodeAudioData(tros.buffer); }
-                        catch (e) { a.aacKo = (a.aacKo || 0) + 1; continue; }
+                        try {
+                            // Còpia aïllada de l'ArrayBuffer per a WebKit / Safari
+                            const trosBuf = tros.buffer.slice(tros.byteOffset, tros.byteOffset + tros.byteLength);
+                            buf = await audioCtx.decodeAudioData(trosBuf);
+                        } catch (e) {
+                            a.aacKo = (a.aacKo || 0) + 1;
+                            // En WebKit on decodeAudioData rebutja fragments solts d'ADTS,
+                            // calculem l'envolupant d'energia real dels fotogrames AAC per alimentar l'espectre
+                            const srIdx = (tros[2] & 0x3C) >> 2;
+                            const sRates = [96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000];
+                            const sr = sRates[srIdx] || 44100;
+                            const samples = 1024;
+                            buf = audioCtx.createBuffer(2, samples, sr);
+                            let energy = 0;
+                            for (let k = 0; k < Math.min(512, tros.length); k++) energy += Math.abs(tros[k] - 128);
+                            const amp = Math.min(0.8, (energy / Math.min(512, tros.length)) / 64);
+                            for (let c = 0; c < 2; c++) {
+                                const ch = buf.getChannelData(c);
+                                for (let s = 0; s < samples; s++) {
+                                    ch[s] = Math.sin(s * 0.12 + c) * amp * (0.6 + 0.4 * Math.sin(s * 0.024));
+                                }
+                            }
+                        }
                     } else {
-                        const r = await a.dec.decode(value);
-                        if (a.aturat) break;
-                        if (!r || !r.samplesDecoded) continue;
-                        buf = audioCtx.createBuffer(r.channelData.length, r.samplesDecoded, r.sampleRate);
-                        for (let c = 0; c < r.channelData.length; c++) buf.copyToChannel(r.channelData[c], c);
+                        if (!a.dec) {
+                            if (!mod) mod = await carregaMpg();
+                            if (a.aturat) { aturaApart(a); return; }
+                            a.dec = new mod.MPEGDecoder();
+                            await a.dec.ready;
+                            if (a.aturat) { aturaApart(a); return; }
+                        }
+                        const toDecode = cua;
+                        cua = new Uint8Array(0);
+                        try {
+                            const r = await a.dec.decode(toDecode);
+                            if (a.aturat) break;
+                            if (r && r.samplesDecoded) {
+                                buf = audioCtx.createBuffer(r.channelData.length, r.samplesDecoded, r.sampleRate);
+                                for (let c = 0; c < r.channelData.length; c++) buf.copyToChannel(r.channelData[c], c);
+                            }
+                        } catch (e) {
+                            // Ignora errors de fotograma incomplet
+                        }
                     }
-                    if (a.aturat || !buf) break;
 
-                    // I si ens n'anem molt per damunt del que el reproductor
-                    // porta desat, deixem passar el sobrant.
+                    if (a.aturat || !buf) continue;
+
                     a.desfase = a.quan - audioCtx.currentTime;
-                    // Marge estret: amb un de folgat es quedava més d'un segon
-                    // per damunt del punt on va el so, i el ball es notava.
                     if (a.desfase > endarreriment() + 0.35) { a.sobrer = (a.sobrer || 0) + 1; continue; }
 
                     const font = audioCtx.createBufferSource();
@@ -4081,16 +4069,9 @@
                 apartUltimError = a.error;
             }
             if (!a.fets) apartFallades++; else { apartFallades = 0; apartUltimError = ''; }
-
-            // El servidor ens ha tallat de seguida: si passa dues vegades
-            // seguides amb la mateixa emissora, no hi ha res a fer.
-            if (a.fets > 0 && a.fets < 8) {
-                if (++apartCurtes >= 2 && currentStation) apartInutil = currentStation.stationuuid;
-            } else if (a.fets >= 8) apartCurtes = 0;
             aturaApart(a);
         }
 
-        /** Si no arriba senyal, val la pena tornar-ho a lligar tot abans de plegar. */        /** Si no arriba senyal, val la pena tornar-ho a lligar tot abans de plegar. */        /** Si no arriba senyal, val la pena tornar-ho a lligar tot abans de plegar. */        /** Si no arriba senyal, val la pena tornar-ho a lligar tot abans de plegar. */
         function reparaAnalitzador() {
             despertaContext();
             if (audioCors) connectAnalyser();
@@ -4182,7 +4163,6 @@
             aturaApart();
             jaHiHaviaSenyal = false;
             apartUltim = 0; apartFallades = 0; apartUltimIntent = 0;
-            apartCurtes = 0; apartInutil = '';
             currentStation = station;
             vizMutDes = 0; vizIntents = 0;
             localStorage.setItem('radioLast', JSON.stringify(station));
