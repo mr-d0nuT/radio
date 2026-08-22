@@ -3208,7 +3208,7 @@
         // episodi, així que llegim el començament i tallem la descàrrega tan
         // bon punt la tenim: uns quants kB en comptes de mig mega.
         // ============================================================
-        const VERSIO = '2026-08-22b';
+        const VERSIO = '2026-08-22c';
 
         let podDesc = {};
         try { podDesc = JSON.parse(localStorage.getItem('podDesc') || '{}') || {}; } catch (e) {}
@@ -3976,7 +3976,15 @@
          */
         async function analitzaApart() {
             if (apart || !audioCtx || !currentStation) return;
-            const url = (currentStation && (currentStation.url_resolved || currentStation.url)) || audio.currentSrc || (candidates && candidates[candIdx]);
+            // Primer el que sona de debò. La fitxa guardada pot dur una adreça
+            // que no és la que ha acabat sonant: n'hi ha que van per http i el
+            // reproductor les fa passar per la seva bessona en https, o que
+            // s'arreglen amb la taula d'adreces. Analitzant la guardada
+            // demanàvem una cosa que el navegador bloqueja, no arribava res i
+            // queia al dibuix mentre el so anava perfecte.
+            const url = audio.currentSrc
+                     || (currentStation && (currentStation.url_resolved || currentStation.url))
+                     || (candidates && candidates[candIdx]);
             if (!url || url.indexOf('blob:') === 0) return;
 
             const a = { url, aturat: false, senyal: 0, sons: [], fets: 0, quan: 0 };
