@@ -1,0 +1,53 @@
+#EXTM3U
+# Ràdios municipals catalanes que no són a Radio Browser.
+# Totes verificades: responen amb àudio i la seva pròpia web enllaça aquest mateix stream.
+# https://mr-d0nut.github.io/radio/  ·  mr_d0nuT
+
+#EXTINF:-1 group-title="Catalunya",Alcanar Ràdio
+https://relay.stream.enacast-cloud.com:40241/alcanarradioHD.mp3
+#EXTINF:-1 group-title="Catalunya",Constantí Ràdio
+https://streaming.enacast.com/radioconstantiSD.mp3
+#EXTINF:-1 group-title="Catalunya",Llagostera Ràdio
+https://relay.stream.enacast-cloud.com:40248/llagosteraradioHD.mp3
+#EXTINF:-1 group-title="Catalunya",Matadepera Ràdio
+https://relay.stream.enacast-cloud.com:40360/radiomatadeperaHD.mp3
+#EXTINF:-1 group-title="Catalunya",Olesa Ràdio
+https://relay.stream.enacast-cloud.com:40303/olesaradioHD.mp3
+#EXTINF:-1 group-title="Catalunya",Ràdio Blanes
+https://streaming.enacast.com/radioblanes128.mp3
+#EXTINF:-1 group-title="Catalunya",Ràdio Caldes
+https://relay.stream.enacast-cloud.com:40062/radiocaldes128.mp3
+#EXTINF:-1 group-title="Catalunya",Ràdio Cambrils
+https://relay.stream.enacast-cloud.com:40315/radiocambrilsHD.mp3
+#EXTINF:-1 group-title="Catalunya",Ràdio Castelldefels
+https://streaming.enacast.com/radiocastelldefels128.mp3
+#EXTINF:-1 group-title="Catalunya",Ràdio Corbera
+https://streaming.enacast.com/radiocorbera128.mp3
+#EXTINF:-1 group-title="Catalunya",Ràdio Cubelles
+https://streaming.enacast.com/cubelles128.mp3
+#EXTINF:-1 group-title="Catalunya",Ràdio Cunit
+https://streaming.enacast.com/radiocunitHD.mp3
+#EXTINF:-1 group-title="Catalunya",Ràdio Esparreguera
+https://relay.stream.enacast-cloud.com:40091/radioesparraguera128.mp3
+#EXTINF:-1 group-title="Catalunya",Ràdio Granollers
+https://relay.stream.enacast-cloud.com:40324/radiogranollersHD.mp3
+#EXTINF:-1 group-title="Catalunya",Ràdio Manresa
+https://streaming.enacast.com/taronjadigital-bages128.mp3
+#EXTINF:-1 group-title="Catalunya",Ràdio Montblanc
+https://relay.stream.enacast-cloud.com:40045/radiomontblanc128.mp3
+#EXTINF:-1 group-title="Catalunya",Ràdio Palau
+https://relay.stream.enacast-cloud.com:40123/radiopalau96.mp3
+#EXTINF:-1 group-title="Catalunya",Ràdio Sant Boi
+https://streaming.enacast.com/radiosantboi128.mp3
+#EXTINF:-1 group-title="Catalunya",Ràdio Sant Feliu
+https://streaming.enacast.com/radiosantfeliu128.mp3
+#EXTINF:-1 group-title="Catalunya",Ràdio Sant Quirze
+https://streaming.enacast.com/radiosantquirzeHD.mp3
+#EXTINF:-1 group-title="Catalunya",Ràdio Súria
+https://relay.stream.enacast-cloud.com:40287/radiosuriaHD.mp3
+#EXTINF:-1 group-title="Catalunya",Ràdio Tordera
+https://relay.stream.enacast-cloud.com:40295/radiotorderaHD.mp3
+#EXTINF:-1 group-title="Catalunya",Ràdio Tremp
+https://relay.stream.enacast-cloud.com:40354/radiotrempHD.mp3
+#EXTINF:-1 group-title="Catalunya",Ràdio Vic
+https://streaming.enacast.com/radiovic56.mp3
