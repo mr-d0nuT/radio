@@ -409,6 +409,12 @@
         #view-ambient .ambient-layer { filter: blur(70px) saturate(200%); }
         #view-ambient .ambient-layer.on { opacity: .32; }
         #main-view > *:not(#view-ambient) { position: relative; z-index: 1; }
+        /* La regla de dalt posa z-index 1 a tots els fills de la finestra, i com
+           que porta un identificador a dins pesa més que qualsevol classe: per
+           això el desplegable de preferides quedava empatat amb el llistat i,
+           com que el llistat va després, es dibuixava al damunt. Amb el mateix
+           pes i més avall, aquest guanya. */
+        #main-view > #fav-bar { z-index: 40; }
 
         /* Dins del gadget, el mateix però contingut a la seva capsa */
         #gadget-view { overflow: hidden; }
