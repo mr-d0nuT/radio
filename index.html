@@ -478,18 +478,15 @@
             #flags-row { width: auto; flex: 0 1 auto; row-gap: 5px; }
             #flags-row > button { flex: 0 0 auto; }
 
-            /* Les preferides passen de barra lateral a tira horitzontal */
+            /* Les preferides passen de barra lateral a panell desplegable / tira */
             #fav-sidebar {
                 width: 100%; flex-shrink: 0;
                 border-right: none;
                 border-bottom: 1px solid rgba(255,255,255,.05);
-                padding: 10px 12px;
+                padding: 8px 12px;
             }
             #fav-sidebar.is-empty { display: none; }
-            #lbl-favorites { margin-bottom: 8px; }
-            #favorites-list { flex-direction: row; overflow-x: auto; overflow-y: hidden; padding-bottom: 2px; }
-            #favorites-list > div { min-width: 145px; }
-            #favorites-empty { display: none !important; }
+            #fav-panel { max-height: 220px; }
 
             /* Barra del reproductor: sense volum (a iOS el volum és de maquinari) */
             #player-volume { display: none !important; }
@@ -517,11 +514,6 @@
             #search-row select { width: 7.25rem; }
 
             #fav-sidebar { padding: 6px 10px; }
-            #lbl-favorites { margin-bottom: 4px; }
-            #favorites-list > div { min-width: 128px; padding: 4px 8px; }
-            /* la barra de desplaçament horitzontal es menjava 20px de res */
-            #favorites-list { scrollbar-width: none; }
-            #favorites-list::-webkit-scrollbar { display: none; }
 
             #stations-grid { padding: 8px 10px; }
             #stations-list { gap: 7px; }
@@ -667,12 +659,11 @@
         <!-- CONTENT AREA -->
         <div id="content-area" class="flex-1 flex overflow-hidden">
             <!-- Sidebar Favorites -->
-            <div id="fav-sidebar" class="w-64 border-r border-white/5 bg-black/20 flex flex-col p-4 shrink-0 relative">
-                <button id="fav-toggle" onclick="toggleFavPanel()" class="w-full flex items-center justify-between gap-2 text-[10px] font-bold text-white/50 hover:text-white tracking-wider px-2 py-2 rounded-lg bg-white/5 border border-white/10 transition-colors">
-                    <span id="lbl-favorites">PREFERIDES (0/10)</span>
-                    <svg id="fav-caret" class="w-3 h-3 shrink-0 transition-transform" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
-                </button>
-                <div id="fav-panel" class="hidden-app absolute left-4 right-4 top-full mt-1 z-30 max-h-72 overflow-y-auto flex flex-col gap-1.5 p-2 rounded-xl bg-[#12121a] border border-white/10 shadow-2xl"></div>
+            <div id="fav-sidebar" class="w-64 border-r border-white/5 bg-black/20 flex flex-col p-4 shrink-0 overflow-hidden">
+                <div class="flex items-center justify-between gap-2 mb-3">
+                    <span id="lbl-favorites" class="text-[10px] font-bold text-white/50 tracking-wider">PREFERIDES (0/10)</span>
+                </div>
+                <div id="favorites-list" class="flex-1 overflow-y-auto flex flex-col gap-1.5 pr-0.5"></div>
             </div>
 
             <!-- Main Grid -->
@@ -1370,17 +1361,7 @@
             if (!e.target.closest('#about-card')) toggleAbout(false);
         });
 
-        function toggleFavPanel(tancar) {
-            const p = byId('fav-panel'), c = byId('fav-caret');
-            if (!p) return;
-            const obert = !p.classList.contains('hidden-app');
-            const nou = tancar === true ? false : !obert;
-            p.classList.toggle('hidden-app', !nou);
-            if (c) c.style.transform = nou ? 'rotate(180deg)' : '';
-        }
-        document.addEventListener('click', e => {
-            if (!e.target.closest('#fav-sidebar')) toggleFavPanel(true);
-        });
+        function toggleFavPanel(tancar) {}
 
         // Finestra flotant (Document PiP o popup). Mentre existeix, el gadget hi viu dins.
         let floatWin = null;
@@ -1973,32 +1954,25 @@
         function renderFavorites() {
             const llista = favList();
             const lbl = byId('lbl-favorites');
-            // "podcast" és masculí: en català, castellà, portuguès i italià
-            // la paraula canvia de gènere segons què estiguem llistant.
             const paraula = (mode === 'podcasts' && t().favM) ? t().favM : t().fav;
             if (lbl) lbl.textContent = paraula + ' (' + llista.length + '/' + MAX_FAVS + ')';
-
             const sidebar = byId('fav-sidebar');
             if (sidebar) sidebar.classList.toggle('is-empty', llista.length === 0);
-
             renderGadgetFavs();
-            const panel = byId('fav-panel');
-            if (!panel) return;
-            panel.innerHTML = '';
-
+            const list = byId('favorites-list');
+            if (!list) return;
+            list.innerHTML = '';
             if (!llista.length) {
-                panel.innerHTML = `<div class="text-[11px] text-white/35 text-center py-3 px-2">${t().noFav}</div>`;
+                list.innerHTML = `<div id="favorites-empty" class="text-[11px] text-white/30 text-center py-6 px-2 italic">${t().noFav}</div>`;
                 return;
             }
-
             llista.forEach((x, i) => {
                 const actiu = mode === 'podcasts'
                     ? currentPodcast && currentPodcast.id === x.id
                     : currentStation && currentStation.stationuuid === x.stationuuid;
                 const fila = document.createElement('div');
-                fila.className = 'flex items-center gap-2 p-2 rounded-lg border cursor-pointer group '
-                    + (actiu ? 'bg-white/10 border-[#ffd600]/50' : 'bg-white/[.03] border-white/5 hover:bg-white/10');
-                // Un episodi solt es llegeix millor amb el programa al davant.
+                fila.className = 'flex items-center gap-2 p-2 rounded-lg border cursor-pointer group transition-all shrink-0 '
+                    + (actiu ? 'bg-white/10 border-[#ffd600]/50 shadow-[0_0_8px_rgba(255,214,0,0.12)]' : 'bg-white/[.03] border-white/5 hover:bg-white/10 hover:border-white/10');
                 const etiqueta = x.episodi
                     ? `<span class="text-white/45 font-medium">${x.artist}</span> · ${x.name}`
                     : x.name;
@@ -2007,27 +1981,25 @@
                     <div class="flex-1 overflow-hidden">
                         <div class="text-xs font-semibold text-white truncate group-hover:text-[#ffd600] transition-colors">${etiqueta}</div>
                     </div>
-                    <button class="text-white/25 hover:text-red-400 transition-colors p-1 shrink-0" title="Treure">
+                    <button class="fav-del-btn text-white/25 hover:text-red-400 transition-colors p-1 shrink-0" title="Treure">
                         <svg class="w-3 h-3 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>`;
+                fila.querySelector('.fav-del-btn').addEventListener('click', e => {
+                    e.stopPropagation();
+                    toggleFavorite(x);
+                });
                 fila.addEventListener('click', e => {
-                    if (e.target.closest('button')) return;
-                    toggleFavPanel(true);
+                    if (e.target.closest('.fav-del-btn')) return;
                     if (mode !== 'podcasts') { playStation(x); return; }
                     if (x.episodi) playStation({ stationuuid: 'ep-' + x.url.slice(-40), name: x.name,
                                                  url_resolved: x.url, country: x.artist,
                                                  favicon: x.art || '', episodi: true }, true);
                     else openEpisodes(x);
                 });
-                fila.querySelector('button').addEventListener('click', e => {
-                    e.stopPropagation();
-                    toggleFavorite(x);
-                });
-                panel.appendChild(fila);
+                list.appendChild(fila);
             });
         }
 
-        /** Xips numerats 1-5 al gadget: accés directe a les preferides sense obrir la finestra gran. */
         function renderGadgetFavs() {
             const box = byId('gadget-favs');
             if (!box) return;
@@ -2329,43 +2301,47 @@
             let fontDades = null;
 
             if (base && analyser && freqData) {
-                analyser.getByteFrequencyData(freqData);
-                let suma = 0;
-                for (let i = 0; i < freqData.length; i += 8) suma += freqData[i];
-                if (suma > 0) {
-                    vizMutDes = 0; vizIntents = 0; senyal = true; fontDades = analyser;
-                    if (!jaHiHaviaSenyal) jaHiHaviaSenyal = true;
-                    if (apart) aturaApart();
-                }
-                else if (!vizMutDes) vizMutDes = ara;
-                else if (ara - vizMutDes > 800 && vizIntents < 2) {
-                    vizIntents++; vizMutDes = ara; reparaAnalitzador();
-                }
+                try {
+                    analyser.getByteFrequencyData(freqData);
+                    let suma = 0;
+                    for (let i = 0; i < freqData.length; i += 8) suma += freqData[i];
+                    if (suma > 0) {
+                        vizMutDes = 0; vizIntents = 0; senyal = true; fontDades = analyser;
+                        if (!jaHiHaviaSenyal) jaHiHaviaSenyal = true;
+                        if (apart) aturaApart();
+                    }
+                    else if (!vizMutDes) vizMutDes = ara;
+                    else if (ara - vizMutDes > 800 && vizIntents < 2) {
+                        vizIntents++; vizMutDes = ara; reparaAnalitzador();
+                    }
+                } catch (e) {}
             }
 
             // Camí 2 (Anàlisi en segon pla per a Safari/WebKit o streams sense suport directe)
             if (!senyal && apart && apart.analitzador && sonaAra()) {
-                const n = apart.analitzador.frequencyBinCount;
-                if (!apartBrut || apartBrut.length !== n) apartBrut = new Uint8Array(n);
-                if (!freqData || freqData.length !== n) freqData = new Uint8Array(n);
-                apart.analitzador.getByteFrequencyData(apartBrut);
+                try {
+                    const n = apart.analitzador.frequencyBinCount;
+                    if (!apartBrut || apartBrut.length !== n) apartBrut = new Uint8Array(n);
+                    if (!freqData || freqData.length !== n) freqData = new Uint8Array(n);
+                    apart.analitzador.getByteFrequencyData(apartBrut);
 
-                let suma = 0, viu = 0;
-                for (let i = 0; i < n; i += 8) suma += apartBrut[i];
-                for (let i = 0; i < n; i++) {
-                    const cau = freqData[i] * 0.76;
-                    freqData[i] = apartBrut[i] > cau ? apartBrut[i] : Math.floor(cau);
-                    if (freqData[i] > viu) viu = freqData[i];
-                }
+                    let suma = 0, viu = 0;
+                    for (let i = 0; i < n; i += 8) suma += apartBrut[i];
+                    for (let i = 0; i < n; i++) {
+                        const cau = freqData[i] * 0.76;
+                        freqData[i] = apartBrut[i] > cau ? apartBrut[i] : Math.floor(cau);
+                        if (freqData[i] > viu) viu = freqData[i];
+                    }
 
-                if (suma > 0) {
-                    senyal = true;
-                    fontDades = apart.analitzador;
-                    apartUltim = ara;
-                } else if (apartUltim && ara - apartUltim < 3500) {
-                    senyal = true;
-                    fontDades = apart.analitzador;
-                }
+                    if (suma > 0) {
+                        senyal = true;
+                        fontDades = apart.analitzador;
+                        apartUltim = ara;
+                    } else if (apartUltim && ara - apartUltim < 3500) {
+                        senyal = true;
+                        fontDades = apart.analitzador;
+                    }
+                } catch (e) {}
             }
 
             // Engeguem l'anàlisi en segon pla si el camí directe no té senyal
@@ -2381,11 +2357,12 @@
                 apartUltim = 0;
             }
 
-            // Camí 3: Síntesi orgànica només com a última opció si no hi ha dades espectrals
-            const pintat = !senyal && sonaAra() && (!apart || (apartUltim && ara - apartUltim > 3000));
+            // Camí 3: Síntesi dinàmica i fluida d'espectre mentre no hi hagi dades directes
+            const pintat = !senyal && sonaAra();
             if (pintat) omplePintat(ara);
 
-            const live = sonaAra() && (senyal || pintat || base);
+            // Mentre la ràdio o podcast soni, l'equalitzador és sempre viu i actiu!
+            const live = sonaAra();
             const targets = vizTargets();
 
             const mv = document.getElementById('main-view');
@@ -3704,16 +3681,10 @@
         let audioCtx = null, analyser = null, freqData = null, timeData = null;
 
         function useAudioMode(wantCors) {
-            if (audioCors === wantCors && audio.src !== '') {
-                // Mateix mode, però potser hem perdut l'analitzador pel camí.
-                if (wantCors && !analyser) connectAnalyser();
-                return;
-            }
-            const wasVol = audio.volume, wasMuted = audio.muted;
-            try { audio.pause(); audio.removeAttribute('src'); audio.load(); } catch (e) {}
-
-            // La font del vell queda enganxada a l'analitzador per sempre si no
-            // la desconnectem: cada canvi de mode en deixava una de viva.
+            if (audioCors === wantCors && audio && audio.src) return;
+            const wasVol = (audio && typeof audio.volume === 'number') ? audio.volume : 0.8;
+            const wasMuted = audio ? audio.muted : false;
+            try { if (audio) { audio.pause(); audio.removeAttribute('src'); audio.load(); } } catch (e) {}
             try { const vella = fonts.get(audio); if (vella) vella.disconnect(); } catch (e) {}
 
             audio = new Audio();
@@ -3724,29 +3695,18 @@
             attachAudioListeners(audio);
             ['timeupdate', 'loadedmetadata', 'durationchange', 'emptied'].forEach(ev =>
                 audio.addEventListener(ev, syncSeek));
-            // El node d'àudio NO es crea aquí. WebKit no lliga un element que
-            // encara no té res a sonar: es queda mut per sempre, encara que
-            // després li donis la font. Es crea quan comença a sonar.
         }
 
-        // Un element d'àudio només admet una font per context: si la demanem
-        // dues vegades, l'API llança i ens quedàvem sense analitzador per a
-        // tota la sessió. La desem i la reaprofitem.
         const fonts = new WeakMap();
 
         function connectAnalyser() {
             try {
                 if (!audioCtx) {
                     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                    // Si s'adorm sol mentre hi ha música, el tornem a engegar.
                     audioCtx.onstatechange = () => {
                         if (audioCtx.state === 'suspended' && sonaAra()) despertaContext();
                     };
                 }
-
-                // L'analitzador es crea a part del context. Abans anaven junts,
-                // i n'hi havia prou amb una errada perquè no es tornés a crear
-                // mai més: el context ja existia i el bloc sencer se saltava.
                 if (!analyser) {
                     analyser = audioCtx.createAnalyser();
                     analyser.fftSize = 1024;
@@ -3755,24 +3715,17 @@
                     timeData = new Uint8Array(analyser.fftSize);
                     analyser.connect(audioCtx.destination);
                 }
-
-                if (!fonts.has(audio)) fonts.set(audio, audioCtx.createMediaElementSource(audio));
-                fonts.get(audio).connect(analyser);
+                if (!fonts.has(audio)) {
+                    const srcNode = audioCtx.createMediaElementSource(audio);
+                    fonts.set(audio, srcNode);
+                    srcNode.connect(analyser);
+                }
                 despertaContext();
             } catch (e) {
                 console.warn('Analitzador no disponible:', e);
-                analyser = null;
             }
         }
 
-        /**
-         * El navegador té els contextos adormits fins que l'usuari toca res, i
-         * l'iPhone els adorm quan bloqueges la pantalla. Això últim tallava el
-         * so dels podcasts: com que sí que passen pel motor d'àudio, quan el
-         * motor s'atura callen. Les emissores seguien perquè no hi passaven, i
-         * ara que hi passaran també, els passaria igual. Per això el despertem
-         * sempre que s'adormi amb música engegada.
-         */
         function despertaContext() {
             if (audioCtx && (audioCtx.state === 'suspended' || audioCtx.state === 'interrupted')) {
                 audioCtx.resume().catch(() => {});
@@ -4094,36 +4047,38 @@
             const url = candidates[candIdx];
             if (!url) { failChain(); return; }
 
-            // Provem primer amb CORS, que és el que permet el visualitzador.
-            // Si l'emissora no l'accepta, la mateixa URL es reintenta sense.
+            // Mode de reproducció: primer provem amb CORS per a Web Audio directe,
+            // i si cal passem a mode natiu sense CORS.
             useAudioMode(candMode === 0);
 
-            // Hi ha streams que no responen ni fallen: es queden penjats per
-            // sempre (un port que no parla TLS, per exemple) i el navegador no
-            // dispara cap error. Si no sona a temps, passem a la següent.
             if (candAutoplay) candTimer = setTimeout(() => {
                 console.warn('Sense resposta a temps:', url, '(mode CORS:', candMode === 0, ')');
                 nextCandidate();
-            // Un rebuig de CORS arriba de seguida, així que aquesta espera només
-            // ha de cobrir els streams que es pengen sense dir res.
             }, 9000);
 
-            if (/\.m3u8/i.test(url) && window.Hls && Hls.isSupported()) {
-                hls = new Hls();
-                hls.loadSource(url);
-                hls.attachMedia(audio);
-                hls.on(Hls.Events.MANIFEST_PARSED, () => { if (candAutoplay) audio.play().catch(() => {}); });
-                hls.on(Hls.Events.ERROR, (_, d) => { if (d.fatal) nextCandidate(); });
+            if (/\.m3u8/i.test(url)) {
+                if (audio.canPlayType('application/vnd.apple.mpegurl')) {
+                    audio.src = url;
+                    if (candAutoplay) audio.play().catch(e => console.warn('play err:', e));
+                } else if (window.Hls && Hls.isSupported()) {
+                    hls = new Hls();
+                    hls.loadSource(url);
+                    hls.attachMedia(audio);
+                    hls.on(Hls.Events.MANIFEST_PARSED, () => { if (candAutoplay) audio.play().catch(e => console.warn('play err:', e)); });
+                    hls.on(Hls.Events.ERROR, (_, d) => { if (d.fatal) nextCandidate(); });
+                } else {
+                    audio.src = url;
+                    if (candAutoplay) audio.play().catch(e => console.warn('play err:', e));
+                }
             } else {
                 audio.src = url;
-                if (candAutoplay) audio.play().catch(() => {});
+                if (candAutoplay) audio.play().catch(e => console.warn('play err:', e));
             }
         }
 
         function nextCandidate() {
             clearCandTimer();
             if (candMode === 0) {
-                // Potser només ha fallat per CORS: mateixa URL, sense analitzador.
                 candMode = 1;
                 loadCandidate();
             } else if (candIdx < candidates.length - 1) {
